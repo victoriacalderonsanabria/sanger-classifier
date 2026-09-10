@@ -1,0 +1,36 @@
+# --- Datos del ensayo: nunca al repo (es público) ---
+*.[aA][bB]1
+resultados/
+resultados_*/
+res_*/
+blast_xml/
+*.hits.json
+Informe_*.md
+
+# --- Binarios y builds (el .exe se construye en C:\Sanger) ---
+*.exe
+build/
+dist/
+
+# --- Configuración personal (incluye el mail de NCBI) ---
+.sanger/
+.env
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Sistema y editores ---
+.Rhistory
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/

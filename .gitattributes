@@ -1,0 +1,7 @@
+# Todo el texto se guarda y se descarga con LF, igual que los originales.
+# Sin esto, git en Windows (core.autocrlf=true) los pasaría a CRLF al hacer
+# checkout, y legacy/ dejaría de ser idéntico byte a byte al original.
+* text=auto eol=lf
+
+*.ico binary
+*.png binary
