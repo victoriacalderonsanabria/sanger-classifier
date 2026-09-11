@@ -1,0 +1,18 @@
+[
+  {
+    "especie": "Canis lupus",
+    "accession": "XX000006.1",
+    "identidad": 98.85,
+    "cobertura": 99.6,
+    "evalue": 5e-110,
+    "titulo": "Canis lupus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+  },
+  {
+    "especie": "Vulpes vulpes",
+    "accession": "XX000007.1",
+    "identidad": 98.46,
+    "cobertura": 99.6,
+    "evalue": 7.2e-108,
+    "titulo": "Vulpes vulpes isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+  }
+]

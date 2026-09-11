@@ -1,0 +1,18 @@
+[
+  {
+    "especie": "Bos taurus",
+    "accession": "XX000001.1",
+    "identidad": 99.62,
+    "cobertura": 100.0,
+    "evalue": 1e-120,
+    "titulo": "Bos taurus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+  },
+  {
+    "especie": "Bubalus bubalis",
+    "accession": "XX000002.1",
+    "identidad": 91.54,
+    "cobertura": 100.0,
+    "evalue": 3.5e-88,
+    "titulo": "Bubalus bubalis isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+  }
+]

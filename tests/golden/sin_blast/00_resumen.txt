@@ -1,0 +1,6 @@
+Cromatogramas: 26  (BUENA: 14, PARCIAL: 6, SIN_SEÑAL: 6)
+Muestras: 16
+  CONFIABLE:   10  (consenso F+R: 3)
+  DUDOSA:      3
+  RECHAZADA:   3
+Tiempo total: 1 s  (BLAST: 0 s; QC, consenso e informes: 1 s)

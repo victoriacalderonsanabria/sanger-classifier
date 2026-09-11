@@ -18,15 +18,16 @@ Está validado sobre 192 cromatogramas reales (96 muestras).
 
 ## Estado
 
-**En modularización.** Hoy el código es el script original, copiado sin
-cambios: `clasificar_sanger.py` (línea de comandos) y `sanger_gui.py` (ventana).
-El plan lo convierte en un paquete Python con tests y una interfaz nueva, sin
-cambiar ningún resultado:
+**En modularización (fase 1 lista).** El programa vive en el paquete
+`src/sanger/`. `clasificar_sanger.py` quedó en la raíz como punto de entrada,
+así que se usa exactamente igual que antes, y la ventana actual
+(`sanger_gui.py`) sigue funcionando. Los resultados son idénticos a los del
+script original.
 
 | Fase | Qué | Cambia la salida |
 |---|---|---|
 | 0 | Repositorio, CI, tests de caracterización, referencia de paridad | No |
-| 1 | Partir el script en módulos (`src/sanger/`) + suite sintética | No |
+| 1 | ✅ Partir el script en módulos (`src/sanger/`) + suite sintética | No |
 | 2 | Pipeline con progreso y cancelación, sin `print` ni `sys.exit` | No |
 | 3 | Ventana nueva en PySide6 con tabla de resultados | No |
 | 4 | Corrección de errores conocidos del BLAST | **Sí**, documentado |
@@ -64,6 +65,29 @@ ruff format --check             # formato
 Reglas de trabajo para quien contribuya (personas o agentes): ver
 [`CLAUDE.md`](CLAUDE.md).
 
+### Estructura
+
+```
+src/sanger/
+  config.py          Parametros: todos los umbrales de una corrida (inmutable)
+  modelos.py         Lectura, Muestra, Hit, Resultado, Grupo
+  qc/                recorte de Mott y métricas de calidad        ┐
+  ensamblado/        consenso F+R y comparación entre muestras    ├ funciones puras
+  clasificacion.py   qué secuencia representa a cada muestra      ┘
+  io/                lectura de .ab1, nombres de archivo, informes
+  blast/             NCBI remoto, blastn local, motor falso para tests, interpretación
+  pipeline.py        el único que orquesta los pasos
+  cli.py             la línea de comandos
+clasificar_sanger.py punto de entrada histórico (llama a sanger.cli)
+tests/
+  sintetico/         generador de lecturas por perfil, escritor de .ab1, corrida estándar
+  fixtures/blast/    respuestas de BLAST preparadas
+  golden/            salida esperada de la corrida estándar (ver su LEEME.md)
+```
+
+Los módulos marcados como funciones puras no leen archivos ni hablan con BLAST;
+un test (`tests/test_arquitectura.py`) lo verifica leyendo sus `import`.
+
 ### Paridad: cómo se verifica que la ciencia no cambió
 
 Antes de tocar el código se corrió el script original sobre los 192 `.ab1`
@@ -82,6 +106,18 @@ python scripts\paridad.py C:\Sanger\paridad\referencia_original C:\Sanger\parida
 
 Los informes `01` a `05` tienen que salir idénticos byte a byte; `00_resumen.txt`
 y la consola, idénticos salvo la línea del tiempo de ejecución.
+
+El camino **con BLAST** se verifica igual, sin consultar a NCBI: se copia a la
+carpeta de salida un caché con respuestas inventadas para las 96 muestras, y el
+programa lo reutiliza en vez de enviar las secuencias.
+
+```powershell
+New-Item -ItemType Directory -Force C:\Sanger\paridad\nueva_blast\blast_xml | Out-Null
+Copy-Item C:\Sanger\paridad\cache_blast_sintetico\*.hits.json C:\Sanger\paridad\nueva_blast\blast_xml\
+cmd /c "python clasificar_sanger.py -i `"$ab1`" -o C:\Sanger\paridad\nueva_blast > C:\Sanger\paridad\nueva_blast.consola.txt 2>&1"
+python scripts\paridad.py C:\Sanger\paridad\referencia_blast_cache C:\Sanger\paridad\nueva_blast `
+    --consola C:\Sanger\paridad\referencia_blast_cache.consola.txt C:\Sanger\paridad\nueva_blast.consola.txt
+```
 
 Dos detalles que parecen caprichosos pero no lo son:
 

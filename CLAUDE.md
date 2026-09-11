@@ -89,16 +89,32 @@ pytest                      # corre con --disable-socket: sin red
 Las tres tienen que dar OK localmente; el CI corre lo mismo en Ubuntu y Windows,
 Python 3.11 y 3.12.
 
-En la fase 0, `clasificar_sanger.py` y `sanger_gui.py` están excluidos de
-`ruff` porque todavía son los originales sin tocar. En la fase 1 salen de la
-exclusión (ver `pyproject.toml`).
+`sanger_gui.py` (la ventana original, sin tocar) está excluido de `ruff` hasta
+que la fase 3 la reemplace. En `cli.py` se ignora el largo de línea porque los
+textos de `--help` están copiados literal del original.
+
+El CI además exige cobertura ≥ 80 % en `qc/`, `ensamblado/` y `clasificacion.py`.
+
+## Goldens
+
+`tests/golden/` tiene la salida esperada de la corrida sintética estándar (con
+y sin BLAST, más la consola). Los de la fase 1 los generó el script original.
+Si un golden deja de coincidir, el cambio está mal. Solo se regeneran a
+propósito (`python scripts/generar_goldens.py`, a mano) cuando la salida tiene
+que cambiar, y se explica en el PR. Ver `tests/golden/LEEME.md`.
 
 ## Paridad
 
-La referencia está en `C:\Sanger\paridad\referencia_original` (+ `.consola.txt`),
-generada con el script original sobre los 192 `.ab1` con `--no-blast`. Los
-detalles están en `C:\Sanger\paridad\LEEME_referencia.txt`, y el comando exacto
-en el `README.md`.
+Dos referencias en `C:\Sanger\paridad\`, las dos generadas con el script
+original sobre los 192 `.ab1` (los detalles están en `LEEME_referencia.txt`):
+
+- `referencia_original` (+ `.consola.txt`): con `--no-blast`.
+- `referencia_blast_cache` (+ `.consola.txt`): con BLAST, respondido desde el
+  caché sintético `cache_blast_sintetico\` (hits inventados que cubren las 7
+  interpretaciones). Antes de correr, se copian esos `.hits.json` a
+  `<salida>\blast_xml\`: así no se consulta a NCBI.
+
+El comando exacto está en el `README.md`.
 
 - `01` a `05`: idénticos byte a byte.
 - `00_resumen.txt` y consola: idénticos salvo la línea "Tiempo total" (y en
@@ -135,8 +151,13 @@ Decisiones tomadas y validadas. No son accidentes.
 
 ## Arquitectura
 
-Objetivo a partir de la fase 1. En la fase 0 el código son todavía los scripts
-originales de la raíz.
+Así está desde la fase 1 (salvo `src/sanger_ui/`, que llega en la fase 3).
+`clasificar_sanger.py` en la raíz es solo un punto de entrada que llama a
+`sanger.cli.main`: lo usan la línea de comandos histórica y `sanger_gui.py`.
+
+Pendiente de la fase 2: `pipeline.py`, `blast/remoto.py` y `blast/local.py`
+todavía usan `print` y `sys.exit`, igual que el original. `errores.py` se crea
+en la fase 2, cuando haya excepciones que definir.
 
 ```
 src/sanger/        CORE. No sabe que existe una UI.

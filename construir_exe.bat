@@ -24,9 +24,12 @@ if not exist logo_mosquito.ico echo AVISO: no encuentro logo_mosquito.ico, el .e
 
 echo.
 echo Construyendo el ejecutable (tarda 1-3 minutos)...
+REM --paths src: desde la fase 1 el programa vive en src\sanger (hay que correr
+REM esto desde una copia completa del repositorio, no solo con los .py sueltos).
 python -m PyInstaller --noconfirm --clean --onefile --windowed ^
     --name ClasificadorSanger ^
     %ICONO% ^
+    --paths src ^
     --collect-submodules Bio ^
     sanger_gui.py
 if errorlevel 1 (
