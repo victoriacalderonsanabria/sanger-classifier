@@ -12,15 +12,19 @@ Uso:
     # los goldens de la fase 1: los produjo el código de antes del refactor)
     python scripts/generar_goldens.py --script ruta/al/clasificar_sanger.py
 
-Dos normalizaciones, para que los goldens valgan en Windows y en Linux:
+Tres normalizaciones, para que los goldens valgan en Windows y en Linux:
   - En la consola, las rutas de entrada y salida se reemplazan por <ENTRADA> y
     <SALIDA> (además, así no queda la ruta de nadie en el repo).
   - Los .txt/.fasta/.json se guardan con fin de línea LF: Python escribe CRLF en
     Windows y LF en Linux (los CSV no, esos siempre salen con CRLF).
+  - Los .fasta se pasan a UTF-8: Biopython los escribe con la codificación del
+    sistema (cp1252 en Windows, UTF-8 en Linux), y el motivo de las DUDOSAS
+    lleva acentos ("se usó recorte").
 """
 
 import argparse
 import io
+import locale
 import os
 import shutil
 import subprocess
@@ -51,7 +55,10 @@ def normalizar_salida(carpeta: Path, entrada: Path, consola: str) -> None:
     """Deja la carpeta comparable entre sistemas (ver docstring del módulo)."""
     for archivo in carpeta.iterdir():
         if archivo.suffix in TEXTO_LF:
-            archivo.write_bytes(archivo.read_bytes().replace(b"\r\n", b"\n"))
+            datos = archivo.read_bytes().replace(b"\r\n", b"\n")
+            if archivo.suffix == ".fasta":
+                datos = datos.decode(locale.getpreferredencoding(False)).encode("utf-8")
+            archivo.write_bytes(datos)
     shutil.rmtree(carpeta / "blast_xml", ignore_errors=True)
     consola = normalizar_consola(consola, entrada, carpeta)
     (carpeta / "consola.txt").write_bytes(consola.encode("utf-8"))

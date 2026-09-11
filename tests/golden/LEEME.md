@@ -30,6 +30,9 @@ exactamente lo mismo que el script de antes del refactor.
 - `.txt`, `.fasta` y `.json` se guardan con fin de línea LF. Python los escribe
   con CRLF en Windows y con LF en Linux; el test normaliza igual antes de comparar.
   Los CSV no se tocan: el módulo `csv` los escribe con CRLF en cualquier sistema.
+- Los `.fasta` se guardan en UTF-8. Biopython los escribe con la codificación
+  del sistema (cp1252 en Windows, UTF-8 en Linux), y el motivo de las DUDOSAS
+  lleva acentos ("se usó recorte"). Así lo hace el script original.
 
 ## Cuándo se actualizan
 
