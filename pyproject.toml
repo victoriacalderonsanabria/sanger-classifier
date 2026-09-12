@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sanger-classifier"
-version = "0.0.1"
+version = "0.1.0"
 description = "Control de calidad, consenso F/R y BLAST de cromatogramas Sanger (.ab1) para identificar especies."
 readme = "README.md"
 license = "MIT"
@@ -21,14 +21,12 @@ dev = [
     "ruff>=0.6",
 ]
 
-[tool.setuptools]
-# Fase 0: todavía no hay paquete; el código son los scripts originales de la
-# raíz, copiados sin cambios. En la fase 1 esto pasa a src/sanger y src/sanger_ui.
-packages = []
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "scripts"]
+pythonpath = [".", "src", "scripts"]
 # --disable-socket: cualquier test que intente usar la red falla. La suite
 # tiene que correr offline; un test que necesita internet está mal escrito.
 addopts = "-ra --disable-socket"
@@ -36,13 +34,18 @@ addopts = "-ra --disable-socket"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = [".", "scripts"]
-# legacy/ está congelado para siempre. Los dos scripts de la raíz se excluyen
-# solo durante la fase 0 (no se pueden tocar); en la fase 1 salen de esta lista.
-extend-exclude = ["legacy", "clasificar_sanger.py", "sanger_gui.py"]
+src = [".", "src", "scripts", "tests"]
+# legacy/ está congelado para siempre. sanger_gui.py es la ventana original sin
+# tocar: se excluye hasta que la fase 3 la reemplace.
+extend-exclude = ["legacy", "sanger_gui.py"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Los textos de --help están copiados literal del script original: cortarlos
+# para respetar el largo de línea cambiaría lo que ve el usuario.
+"src/sanger/cli.py" = ["E501"]
 
 [tool.coverage.run]
 omit = ["legacy/*"]

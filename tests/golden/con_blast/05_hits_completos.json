@@ -1,0 +1,202 @@
+{
+  "S01": [
+    {
+      "especie": "Bos taurus",
+      "accession": "XX000001.1",
+      "identidad": 99.62,
+      "cobertura": 100.0,
+      "evalue": 1e-120,
+      "titulo": "Bos taurus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    },
+    {
+      "especie": "Bubalus bubalis",
+      "accession": "XX000002.1",
+      "identidad": 91.54,
+      "cobertura": 100.0,
+      "evalue": 3.5e-88,
+      "titulo": "Bubalus bubalis isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ],
+  "S02": [
+    {
+      "especie": "Bos taurus",
+      "accession": "XX000003.1",
+      "identidad": 99.23,
+      "cobertura": 100.0,
+      "evalue": 2e-115,
+      "titulo": "Bos taurus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    },
+    {
+      "especie": "Bos indicus",
+      "accession": "XX000004.1",
+      "identidad": 99.23,
+      "cobertura": 100.0,
+      "evalue": 2e-115,
+      "titulo": "Bos indicus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    },
+    {
+      "especie": "Bison bison",
+      "accession": "XX000005.1",
+      "identidad": 96.1,
+      "cobertura": 100.0,
+      "evalue": 4.1e-99,
+      "titulo": "Bison bison isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ],
+  "S03": [
+    {
+      "especie": "Canis lupus",
+      "accession": "XX000006.1",
+      "identidad": 98.85,
+      "cobertura": 99.6,
+      "evalue": 5e-110,
+      "titulo": "Canis lupus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    },
+    {
+      "especie": "Vulpes vulpes",
+      "accession": "XX000007.1",
+      "identidad": 98.46,
+      "cobertura": 99.6,
+      "evalue": 7.2e-108,
+      "titulo": "Vulpes vulpes isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ],
+  "S04": [
+    {
+      "especie": "Gallus gallus",
+      "accession": "XX000008.1",
+      "identidad": 99.05,
+      "cobertura": 42.3,
+      "evalue": 1.3e-40,
+      "titulo": "Gallus gallus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ],
+  "S05": [
+    {
+      "especie": "Didelphis albiventris",
+      "accession": "XX000009.1",
+      "identidad": 89.74,
+      "cobertura": 97.1,
+      "evalue": 6.6e-62,
+      "titulo": "Didelphis albiventris isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ],
+  "S06": [
+    {
+      "especie": "Homo sapiens",
+      "accession": "XX000010.1",
+      "identidad": 100.0,
+      "cobertura": 100.0,
+      "evalue": 0.0,
+      "titulo": "Homo sapiens mitochondrion, complete genome"
+    }
+  ],
+  "S10": [
+    {
+      "especie": "Bos taurus",
+      "accession": "XX000001.1",
+      "identidad": 99.62,
+      "cobertura": 100.0,
+      "evalue": 1e-120,
+      "titulo": "Bos taurus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    },
+    {
+      "especie": "Bubalus bubalis",
+      "accession": "XX000002.1",
+      "identidad": 91.54,
+      "cobertura": 100.0,
+      "evalue": 3.5e-88,
+      "titulo": "Bubalus bubalis isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ],
+  "S12": [
+    {
+      "especie": "Bos taurus",
+      "accession": "XX000003.1",
+      "identidad": 99.23,
+      "cobertura": 100.0,
+      "evalue": 2e-115,
+      "titulo": "Bos taurus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    },
+    {
+      "especie": "Bos indicus",
+      "accession": "XX000004.1",
+      "identidad": 99.23,
+      "cobertura": 100.0,
+      "evalue": 2e-115,
+      "titulo": "Bos indicus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    },
+    {
+      "especie": "Bison bison",
+      "accession": "XX000005.1",
+      "identidad": 96.1,
+      "cobertura": 100.0,
+      "evalue": 4.1e-99,
+      "titulo": "Bison bison isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ],
+  "S13": [
+    {
+      "especie": "Bos taurus",
+      "accession": "XX000001.1",
+      "identidad": 99.62,
+      "cobertura": 100.0,
+      "evalue": 1e-120,
+      "titulo": "Bos taurus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    },
+    {
+      "especie": "Bubalus bubalis",
+      "accession": "XX000002.1",
+      "identidad": 91.54,
+      "cobertura": 100.0,
+      "evalue": 3.5e-88,
+      "titulo": "Bubalus bubalis isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ],
+  "S14": [
+    {
+      "especie": "Canis lupus",
+      "accession": "XX000006.1",
+      "identidad": 98.85,
+      "cobertura": 99.6,
+      "evalue": 5e-110,
+      "titulo": "Canis lupus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    },
+    {
+      "especie": "Vulpes vulpes",
+      "accession": "XX000007.1",
+      "identidad": 98.46,
+      "cobertura": 99.6,
+      "evalue": 7.2e-108,
+      "titulo": "Vulpes vulpes isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ],
+  "S15": [
+    {
+      "especie": "Didelphis albiventris",
+      "accession": "XX000009.1",
+      "identidad": 89.74,
+      "cobertura": 97.1,
+      "evalue": 6.6e-62,
+      "titulo": "Didelphis albiventris isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ],
+  "S16": [
+    {
+      "especie": "Bos taurus",
+      "accession": "XX000001.1",
+      "identidad": 99.62,
+      "cobertura": 100.0,
+      "evalue": 1e-120,
+      "titulo": "Bos taurus isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    },
+    {
+      "especie": "Bubalus bubalis",
+      "accession": "XX000002.1",
+      "identidad": 91.54,
+      "cobertura": 100.0,
+      "evalue": 3.5e-88,
+      "titulo": "Bubalus bubalis isolate SINTETICO cytochrome c oxidase subunit I (COI) gene, partial cds; mitochondrial"
+    }
+  ]
+}

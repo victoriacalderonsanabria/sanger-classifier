@@ -11,6 +11,8 @@ Informe_*.md
 *.exe
 build/
 dist/
+# el que genera construir_exe.bat (el spec versionado va en scripts/, fase 3)
+/ClasificadorSanger.spec
 
 # --- Configuración personal (incluye el mail de NCBI) ---
 .sanger/

@@ -1,0 +1,17 @@
+﻿muestra;grupo;origen;largo;q_media;pct_q20;solapamiento;discrepancias;conflictos;especie_1;identidad_1;cobertura_1;evalue_1;accession_1;especie_2;identidad_2;especie_3;identidad_3;interpretacion;motivo;vs_confiables;archivos
+S01;CONFIABLE;CONSENSO_F+R;260;39,4;100,0;200;0;0;;;;;;;;;;;;;S01_F.ab1 | S01_R.ab1
+S02;CONFIABLE;CONSENSO_F+R;260;36,8;100,0;139;10;0;;;;;;;;;;;;;S02_F.ab1 | S02_R.ab1
+S03;CONFIABLE;SOLO_F;260;37,4;100,0;;;;;;;;;;;;;;;;S03_F.ab1
+S04;CONFIABLE;SOLO_R;205;37,3;100,0;;;;;;;;;;;;;;;;S04_F.ab1 | S04_R.ab1
+S09;CONFIABLE;SOLO_F;230;37,5;100,0;;;;;;;;;;;;;;;;S09_F.ab1 | S09_R.ab1
+S12;CONFIABLE;SOLO_?;260;37,9;100,0;;;;;;;;;;;;;;;;S12.ab1
+S13;CONFIABLE;SOLO_R;260;37,5;100,0;;;;;;;;;;;;;;;;S13_F.ab1 | S13_R.ab1
+S14;CONFIABLE;SOLO_R;260;37,6;100,0;;;;;;;;;;;;;;;;S14_R.ab1
+S15;CONFIABLE;SOLO_F;215;37,5;100,0;;;;;;;;;;;;;;;;S15_F.ab1 | S15_R.ab1
+S16;CONFIABLE;CONSENSO_F+R;260;39,3;100,0;180;0;0;;;;;;;;;;;;;S16_HCO2198.ab1 | S16_LCO1490.ab1
+S05;DUDOSA;CONSENSO_F+R;260;28,1;61,5;98;15;0;;;;;;;;;;;con recorte Q20 quedaban 80 pb - se usó recorte Q15 | 61.5% bases Q20 < 80.0%;coincide con S01 (100.0% en 80 bases buenas);S05_F.ab1 | S05_R.ab1
+S06;DUDOSA;SOLO_F;150;27,3;53,3;;;;;;;;;;;;;;con recorte Q20 quedaban 80 pb - se usó recorte Q15 | 53.3% bases Q20 < 80.0%;coincide con S03 (100.0% en 80 bases buenas);S06_F.ab1
+S10;DUDOSA;SOLO_F;150;26,6;50,7;;;;;;;;;;;;;;con recorte Q20 quedaban 80 pb - se usó recorte Q15 | 50.7% bases Q20 < 80.0% | 4 bases ambiguas;coincide con S13 (100.0% en 76 bases buenas);S10_F.ab1
+S07;RECHAZADA;;0;;;;;;;;;;;;;;;;ninguna lectura con señal utilizable;;S07_F.ab1 | S07_R.ab1
+S08;RECHAZADA;;0;;;;;;;;;;;;;;;;ninguna lectura con señal utilizable;;S08_F.ab1 | S08_R.ab1
+S11;RECHAZADA;;0;;;;;;;;;;;;;;;;hay señal pero ni con recorte Q15 se llega a 60 pb;;S11_F.ab1

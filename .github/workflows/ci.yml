@@ -29,4 +29,6 @@ jobs:
       - name: ruff format --check
         run: ruff format --check
       - name: pytest (sin red)
-        run: pytest
+        run: pytest --cov=sanger --cov-report=term
+      - name: Cobertura ≥ 80 % en la parte científica (qc, ensamblado, clasificación)
+        run: coverage report --fail-under=80 --include="src/sanger/qc/*,src/sanger/ensamblado/*,src/sanger/clasificacion.py"

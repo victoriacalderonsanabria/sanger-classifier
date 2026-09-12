@@ -3,15 +3,17 @@
 ## Para quien construye el ejecutable (una sola vez)
 
 1. Tener Python 3 instalado en Windows (python.org, marcando **"Add Python to PATH"**).
-2. Poner en una misma carpeta estos tres archivos:
-   `clasificar_sanger.py`, `sanger_gui.py`, `construir_exe.bat`.
+2. Tener una copia **completa** del repositorio fuera de OneDrive (por ejemplo
+   en `C:\Sanger`). Desde la fase 1 el programa vive en la carpeta `src\`, así
+   que ya no alcanza con copiar `clasificar_sanger.py`, `sanger_gui.py` y
+   `construir_exe.bat` sueltos.
 3. Doble clic en `construir_exe.bat`. Instala Biopython y PyInstaller y arma el
    ejecutable (1–3 minutos). Al terminar queda en `dist\ClasificadorSanger.exe`
    (unos 40–60 MB).
 4. Compartir **solo** `ClasificadorSanger.exe`. No hace falta nada más en la
    máquina de destino: ni Python, ni Biopython.
 
-Cada vez que se modifique `clasificar_sanger.py`, hay que volver a correr
+Cada vez que se modifique el programa (`src\sanger\`), hay que volver a correr
 `construir_exe.bat` y redistribuir el `.exe`.
 
 **Si Windows o el antivirus bloquean el .exe**: es habitual con programas hechos

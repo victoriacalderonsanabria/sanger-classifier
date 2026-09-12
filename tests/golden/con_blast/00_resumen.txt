@@ -1,0 +1,8 @@
+Cromatogramas: 26  (BUENA: 14, PARCIAL: 6, SIN_SEÑAL: 6)
+Muestras: 16
+  CONFIABLE:   10  (consenso F+R: 3)
+  DUDOSA:      3
+  RECHAZADA:   3
+BLAST CONFIABLE: ambiguo=2, cobertura_baja=1, identidad_baja=1, identificado=3, identificado a nivel de género=2, sin_hit=1
+BLAST DUDOSA: humano=1, identidad_baja=1, identificado=1
+Tiempo total: 0 s  (BLAST: 0 s; QC, consenso e informes: 0 s)

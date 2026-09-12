@@ -1,0 +1,55 @@
+Encontré 26 cromatogramas en <ENTRADA>
+
+  S01_F.ab1                              S01          F  crudo= 230 Q=37.5  Q20=230  recorte Q20=230 Q15=230  BUENA
+  S01_R.ab1                              S01          R  crudo= 230 Q=37.3  Q20=230  recorte Q20=230 Q15=230  BUENA
+  S02_F.ab1                              S02          F  crudo= 205 Q=21.2  Q20= 80  recorte Q20= 80 Q15=150  PARCIAL
+  S02_R.ab1                              S02          R  crudo= 205 Q=37.3  Q20=205  recorte Q20=205 Q15=205  BUENA
+  S03_F.ab1                              S03          F  crudo= 260 Q=37.4  Q20=260  recorte Q20=260 Q15=260  BUENA
+  S04_F.ab1                              S04          F  crudo= 205 Q=7.0   Q20=  0  recorte Q20=  0 Q15=  0  SIN_SEÑAL
+  S04_R.ab1                              S04          R  crudo= 205 Q=37.3  Q20=205  recorte Q20=205 Q15=205  BUENA
+  S05_F.ab1                              S05          F  crudo= 180 Q=23.1  Q20= 80  recorte Q20= 80 Q15=150  PARCIAL
+  S05_R.ab1                              S05          R  crudo= 180 Q=23.4  Q20= 80  recorte Q20= 80 Q15=150  PARCIAL
+  S06_F.ab1                              S06          F  crudo= 260 Q=17.8  Q20= 80  recorte Q20= 80 Q15=150  PARCIAL
+  S07_F.ab1                              S07          F  crudo= 205 Q=7.0   Q20=  0  recorte Q20=  0 Q15=  0  SIN_SEÑAL
+  S07_R.ab1                              S07          R  crudo= 205 Q=7.3   Q20=  0  recorte Q20=  0 Q15=  0  SIN_SEÑAL
+  S08_F.ab1                              S08          F  crudo= 120 Q=37.6  Q20=120  recorte Q20=120 Q15=120  SIN_SEÑAL
+  S08_R.ab1                              S08          R  crudo= 120 Q=37.4  Q20=120  recorte Q20=120 Q15=120  SIN_SEÑAL
+  S09_F.ab1                              S09          F  crudo= 230 Q=37.5  Q20=230  recorte Q20=230 Q15=230  BUENA
+  S09_R.ab1                              S09          R  crudo= 230 Q=37.3  Q20=230  recorte Q20=230 Q15=230  BUENA
+  S10_F.ab1                              S10          F  crudo= 260 Q=17.6  Q20= 76  recorte Q20= 80 Q15=150  PARCIAL
+  S11_F.ab1                              S11          F  crudo= 260 Q=10.0  Q20= 50  recorte Q20= 50 Q15= 50  PARCIAL
+  S12.ab1                                S12          ?  crudo= 260 Q=37.9  Q20=260  recorte Q20=260 Q15=260  BUENA
+  S13_F.ab1                              S13          F  crudo=   0 Q=0.0   Q20=  0  recorte Q20=  0 Q15=  0  SIN_SEÑAL
+  S13_R.ab1                              S13          R  crudo= 260 Q=37.5  Q20=260  recorte Q20=260 Q15=260  BUENA
+  S15_F.ab1                              S15          F  crudo= 215 Q=37.5  Q20=215  recorte Q20=215 Q15=215  BUENA
+  S15_R.ab1                              S15          R  crudo= 215 Q=37.3  Q20=215  recorte Q20=215 Q15=215  BUENA
+  S16_HCO2198.ab1                        S16          R  crudo= 220 Q=37.5  Q20=220  recorte Q20=220 Q15=220  BUENA
+  S16_LCO1490.ab1                        S16          F  crudo= 220 Q=37.4  Q20=220  recorte Q20=220 Q15=220  BUENA
+  S14_R.ab1                              S14          R  crudo= 260 Q=37.6  Q20=260  recorte Q20=260 Q15=260  BUENA
+
+Clasificación por muestra:
+  S01          CONFIABLE    CONSENSO_F+R   260 pb  Q=39.4  
+  S02          CONFIABLE    CONSENSO_F+R   260 pb  Q=36.8  
+  S03          CONFIABLE    SOLO_F         260 pb  Q=37.4  
+  S04          CONFIABLE    SOLO_R         205 pb  Q=37.3  
+  S05          DUDOSA       CONSENSO_F+R   260 pb  Q=28.1  con recorte Q20 quedaban 80 pb - se usó recorte Q15 | 61.5% bases Q20 < 80.0%
+  S06          DUDOSA       SOLO_F         150 pb  Q=27.3  con recorte Q20 quedaban 80 pb - se usó recorte Q15 | 53.3% bases Q20 < 80.0%
+  S07          RECHAZADA    ninguna lectura con señal utilizable
+  S08          RECHAZADA    ninguna lectura con señal utilizable
+  S09          CONFIABLE    SOLO_F         230 pb  Q=37.5  
+  S10          DUDOSA       SOLO_F         150 pb  Q=26.6  con recorte Q20 quedaban 80 pb - se usó recorte Q15 | 50.7% bases Q20 < 80.0% | 4 bases ambiguas
+  S11          RECHAZADA    hay señal pero ni con recorte Q15 se llega a 60 pb
+  S12          CONFIABLE    SOLO_?         260 pb  Q=37.9  
+  S13          CONFIABLE    SOLO_R         260 pb  Q=37.5  
+  S14          CONFIABLE    SOLO_R         260 pb  Q=37.6  
+  S15          CONFIABLE    SOLO_F         215 pb  Q=37.5  
+  S16          CONFIABLE    CONSENSO_F+R   260 pb  Q=39.3  
+
+Cromatogramas: 26  (BUENA: 14, PARCIAL: 6, SIN_SEÑAL: 6)
+Muestras: 16
+  CONFIABLE:   10  (consenso F+R: 3)
+  DUDOSA:      3
+  RECHAZADA:   3
+Tiempo total: 1 s  (BLAST: 0 s; QC, consenso e informes: 1 s)
+
+Listo. Resultados en <SALIDA>

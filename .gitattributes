@@ -5,3 +5,7 @@
 
 *.ico binary
 *.png binary
+
+# Los snapshots se comparan byte a byte: los CSV llevan CRLF (así los escribe
+# el módulo csv en cualquier sistema) y git no tiene que tocarlos.
+tests/golden/** -text
