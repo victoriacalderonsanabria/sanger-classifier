@@ -62,6 +62,20 @@ ruff check                      # errores y estilo
 ruff format --check             # formato
 ```
 
+En Windows, `activate` puede fallar con "la ejecución de scripts está
+deshabilitada en este sistema". No hace falta activar nada: se llama al Python
+del entorno directamente, que es exactamente lo mismo.
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\pytest.exe -q
+.\.venv\Scripts\python.exe clasificar_sanger.py -i carpeta_ab1 -o resultados --no-blast
+```
+
+(La otra opción es habilitar los scripts para tu usuario con
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, pero eso ya es una
+decisión sobre la configuración de tu Windows.)
+
 Reglas de trabajo para quien contribuya (personas o agentes): ver
 [`CLAUDE.md`](CLAUDE.md).
 
