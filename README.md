@@ -18,7 +18,7 @@ Está validado sobre 192 cromatogramas reales (96 muestras).
 
 ## Estado
 
-**En modularización (fase 1 lista).** El programa vive en el paquete
+**En modularización (fase 2 lista).** El programa vive en el paquete
 `src/sanger/`. `clasificar_sanger.py` quedó en la raíz como punto de entrada,
 así que se usa exactamente igual que antes, y la ventana actual
 (`sanger_gui.py`) sigue funcionando. Los resultados son idénticos a los del
@@ -99,19 +99,21 @@ from sanger.config import Parametros
 from sanger.errores import Cancelado, SangerError
 from sanger.pipeline import ejecutar
 
-def mostrar(p):          # p.etapa, p.hechos, p.total, p.mensaje
+
+def mostrar(p):  # p.etapa, p.hechos, p.total, p.mensaje
     print(f"[{p.etapa}] {p.hechos}/{p.total} {p.mensaje}")
+
 
 try:
     resultado = ejecutar(
         Parametros(entrada="carpeta_ab1", salida="resultados", no_blast=True),
         progreso=mostrar,
-        cancelado=lambda: False,   # True para cortar la corrida
+        cancelado=lambda: False,  # True para cortar la corrida
     )
 except Cancelado:
-    ...                            # lo cancelaron: no es una falla
+    ...  # lo cancelaron: no es una falla
 except SangerError as e:
-    print(e)                       # error previsto, con mensaje para mostrar
+    print(e)  # error previsto, con mensaje para mostrar
 ```
 
 Los dos callbacks son opcionales. `cancelado` se consulta entre lecturas, entre
