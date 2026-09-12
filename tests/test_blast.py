@@ -14,6 +14,7 @@ import pytest
 from sanger.blast import local, remoto
 from sanger.blast.falso import MotorFalso, cargar_fixture
 from sanger.blast.interpretacion import interpretar, resumir_hits
+from sanger.errores import BlastError, Cancelado
 from sanger.modelos import Hit
 
 # ----------------------------------------------------------------------------
@@ -147,7 +148,7 @@ def test_remoto_con_cache_completo_no_consulta_ncbi(tmp_path, fixtures_blast, mo
     assert res["M1"] == cargar_fixture(fixtures_blast / "hit_claro.json")
 
 
-def test_remoto_error_de_motor_hoy_se_ve_como_sin_hit_bug1(tmp_path, monkeypatch, capsys):
+def test_remoto_error_de_motor_hoy_se_ve_como_sin_hit_bug1(tmp_path, monkeypatch):
     """
     BUG-1, comportamiento ACTUAL (se corrige en la fase 4, con el OK de Victoria).
 
@@ -164,12 +165,15 @@ def test_remoto_error_de_motor_hoy_se_ve_como_sin_hit_bug1(tmp_path, monkeypatch
 
     monkeypatch.setattr(remoto.NCBIWWW, "qblast", qblast_que_falla)
     monkeypatch.setattr(remoto.time, "sleep", lambda s: None)
-    res = remoto.blast_remoto_lote([("M1", "ACGT", 4), ("M2", "ACGT", 4)], tmp_path)
+    avisos = []
+    res = remoto.blast_remoto_lote(
+        [("M1", "ACGT", 4), ("M2", "ACGT", 4)], tmp_path, progreso=avisos.append
+    )
     assert len(intentos) == 3
     assert res == {"M1": [], "M2": []}
     assert interpretar(res["M1"], 97.0, 80.0) == "sin_hit"
     assert not (tmp_path / "M1.hits.json").exists()  # al menos no queda cacheado
-    assert "intento 3 falló: NCBI no responde" in capsys.readouterr().out
+    assert any("intento 3 falló: NCBI no responde" in p.mensaje for p in avisos)
 
 
 def test_remoto_manda_en_lotes_del_tamano_pedido(tmp_path, monkeypatch):
@@ -189,7 +193,7 @@ def test_remoto_manda_en_lotes_del_tamano_pedido(tmp_path, monkeypatch):
 def test_motor_remoto_pasa_sus_parametros(tmp_path, monkeypatch):
     recibido = {}
 
-    def falso(items, carpeta, db, megablast, entrez_query=None, tamano_lote=50):
+    def falso(items, carpeta, db, megablast, entrez_query=None, tamano_lote=50, **kwargs):
         recibido.update(db=db, megablast=megablast, entrez=entrez_query, lote=tamano_lote)
         return {}
 
@@ -203,23 +207,44 @@ def test_motor_remoto_pasa_sus_parametros(tmp_path, monkeypatch):
 # ----------------------------------------------------------------------------
 
 
-def test_local_sin_blastn_instalado_termina_con_mensaje(tmp_path, monkeypatch):
+def test_local_sin_blastn_instalado_levanta_blast_error(tmp_path, monkeypatch):
+    # antes era un sys.exit dentro de la librería (BRIEFING §2.1c)
     def no_existe(*a, **k):
         raise FileNotFoundError
 
     monkeypatch.setattr(local.subprocess, "run", no_existe)
-    with pytest.raises(SystemExit, match="No encuentro 'blastn'"):
+    with pytest.raises(BlastError, match="No encuentro 'blastn'"):
         local.blast_local("M1", "ACGT", tmp_path, "base")
 
 
-def test_local_si_blastn_falla_la_muestra_queda_sin_hits(tmp_path, monkeypatch, capsys):
+def test_local_si_blastn_falla_la_muestra_queda_sin_hits(tmp_path, monkeypatch):
     def falla(cmd, **k):
         raise subprocess.CalledProcessError(2, cmd, stderr="BLAST Database error\n")
 
     monkeypatch.setattr(local.subprocess, "run", falla)
-    res = local.MotorLocal(tmp_path, "base").buscar([("M1", "ACGT", 4)], megablast=True)
+    avisos = []
+    res = local.MotorLocal(tmp_path, "base").buscar(
+        [("M1", "ACGT", 4)], megablast=True, progreso=avisos.append
+    )
     assert res == {"M1": []}
-    assert "[BLAST local] falló para M1: BLAST Database error" in capsys.readouterr().out
+    assert any("[BLAST local] falló para M1: BLAST Database error" in p.mensaje for p in avisos)
+
+
+def test_remoto_se_puede_cancelar_antes_de_enviar_un_lote(tmp_path, monkeypatch):
+    monkeypatch.setattr(remoto.NCBIWWW, "qblast", _qblast_prohibido)
+    with pytest.raises(Cancelado):
+        remoto.blast_remoto_lote([("M1", "ACGT", 4)], tmp_path, cancelado=lambda: True)
+
+
+def test_local_se_puede_cancelar_entre_muestras(tmp_path, monkeypatch):
+    def no_deberia_correr(*a, **k):
+        raise AssertionError("no debería llamar a blastn después de cancelar")
+
+    monkeypatch.setattr(local.subprocess, "run", no_deberia_correr)
+    with pytest.raises(Cancelado):
+        local.MotorLocal(tmp_path, "base").buscar(
+            [("M1", "ACGT", 4)], megablast=True, cancelado=lambda: True
+        )
 
 
 def test_local_arma_el_comando_de_blastn(tmp_path, monkeypatch):

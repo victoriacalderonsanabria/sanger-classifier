@@ -9,6 +9,7 @@ import argparse
 import sys
 
 from sanger.config import Parametros
+from sanger.modelos import Progreso
 
 # Texto de --help: es el docstring del clasificar_sanger.py original, sin cambios.
 DESCRIPCION = """
@@ -151,15 +152,32 @@ def parametros_desde_args(args: argparse.Namespace) -> Parametros:
     )
 
 
+def imprimir(progreso: Progreso) -> None:
+    """
+    Muestra en pantalla lo que informa el núcleo.
+
+    El núcleo ya no imprime: avisa. Esta función es la que hace que la consola
+    salga exactamente igual que en el script original. Los avisos sin texto son
+    solo avance (sirven para una barra de progreso) y no se muestran.
+    """
+    if progreso.mensaje:
+        print(progreso.mensaje, end=progreso.fin, flush=True)
+
+
 def main(argv: list[str] | None = None) -> None:
     try:
         import Bio  # noqa: F401
     except ImportError:
         sys.exit("Falta Biopython. Instalá con:  pip install biopython")
+    from sanger.errores import SangerError
     from sanger.pipeline import ejecutar
 
     args = construir_parser().parse_args(argv)
-    ejecutar(parametros_desde_args(args))
+    try:
+        ejecutar(parametros_desde_args(args), progreso=imprimir)
+    except SangerError as e:
+        # errores previstos: un mensaje claro y código de salida 1, sin traceback
+        sys.exit(str(e))
 
 
 if __name__ == "__main__":

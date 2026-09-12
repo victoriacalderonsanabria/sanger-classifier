@@ -1,6 +1,7 @@
 """BLAST remoto contra NCBI, en lotes y con caché por muestra."""
 
 import json
+import logging
 import time
 from collections.abc import Sequence
 from io import StringIO
@@ -10,7 +11,13 @@ from Bio.Blast import NCBIWWW, NCBIXML
 
 from sanger.blast.base import Consulta
 from sanger.blast.interpretacion import resumir_hits
-from sanger.modelos import Hit
+from sanger.errores import Cancelado
+from sanger.modelos import Avisar, Hit, PreguntarCancelado, Progreso, nunca_cancelado, sin_aviso
+
+log = logging.getLogger(__name__)
+
+INTENTOS = 3
+ESPERA_ENTRE_INTENTOS = 30  # BUG-4 (fase 4): fija, sin backoff
 
 
 def configurar_email(email: str) -> None:
@@ -27,6 +34,8 @@ def blast_remoto_lote(
     n_hits: int = 10,
     entrez_query: str | None = None,
     tamano_lote: int = 50,
+    progreso: Avisar = sin_aviso,
+    cancelado: PreguntarCancelado = nunca_cancelado,
 ) -> dict[str, list[Hit]]:
     """
     Manda hasta `tamano_lote` secuencias en un solo envío.
@@ -45,18 +54,27 @@ def blast_remoto_lote(
             resultados[nombre] = [Hit(**h) for h in json.loads(cache.read_text(encoding="utf-8"))]
         else:
             pendientes.append((nombre, seq, largo))
+    log.info("BLAST remoto: %d en caché, %d por enviar", len(resultados), len(pendientes))
     if not pendientes:
         return resultados
 
     largos = {n: lg for n, _, lg in pendientes}
+    total_lotes = (len(pendientes) + tamano_lote - 1) // tamano_lote
     for i in range(0, len(pendientes), tamano_lote):
+        if cancelado():
+            raise Cancelado("cancelado antes de enviar el lote a NCBI")
+        n_lote = i // tamano_lote + 1
         lote = pendientes[i : i + tamano_lote]
         fasta = "".join(f">{n}\n{seq}\n" for n, seq, _ in lote)
-        print(
-            f"   enviando lote de {len(lote)} secuencias a NCBI ({db}, "
-            f"{'megablast' if megablast else 'blastn'}) ...",
-            end="",
-            flush=True,
+        progreso(
+            Progreso(
+                "blast",
+                n_lote - 1,
+                total_lotes,
+                f"   enviando lote de {len(lote)} secuencias a NCBI ({db}, "
+                f"{'megablast' if megablast else 'blastn'}) ...",
+                fin="",
+            )
         )
         t0 = time.time()
         kwargs = dict(
@@ -65,19 +83,27 @@ def blast_remoto_lote(
         if entrez_query:
             kwargs["entrez_query"] = entrez_query
         registros = None
-        for intento in range(3):
+        for intento in range(INTENTOS):
             try:
                 h = NCBIWWW.qblast(**kwargs)
                 xml_txt = h.read()
                 h.close()
                 # BUG-3 (fase 4): sin encoding=, en Windows usa cp1252
-                (carpeta_cache / f"lote_{i // tamano_lote + 1}.xml").write_text(xml_txt)
+                (carpeta_cache / f"lote_{n_lote}.xml").write_text(xml_txt)
                 registros = list(NCBIXML.parse(StringIO(xml_txt)))
                 break
             except Exception as e:
-                print(f"\n   [BLAST] intento {intento + 1} falló: {e}")
-                time.sleep(30)  # BUG-4 (fase 4): espera fija, sin backoff
-        print(f" {time.time() - t0:.0f} s")
+                log.warning("BLAST remoto, intento %d de %d falló: %s", intento + 1, INTENTOS, e)
+                progreso(
+                    Progreso(
+                        "blast",
+                        n_lote - 1,
+                        total_lotes,
+                        f"\n   [BLAST] intento {intento + 1} falló: {e}",
+                    )
+                )
+                time.sleep(ESPERA_ENTRE_INTENTOS)
+        progreso(Progreso("blast", n_lote, total_lotes, f" {time.time() - t0:.0f} s"))
         if registros is None:
             # BUG-1 (fase 4): un fallo de red queda igual que "sin hits"
             for n, _, _ in lote:
@@ -108,7 +134,13 @@ class MotorRemoto:
         self.entrez_query = entrez_query
         self.tamano_lote = tamano_lote
 
-    def buscar(self, consultas: Sequence[Consulta], megablast: bool) -> dict[str, list[Hit]]:
+    def buscar(
+        self,
+        consultas: Sequence[Consulta],
+        megablast: bool,
+        progreso: Avisar = sin_aviso,
+        cancelado: PreguntarCancelado = nunca_cancelado,
+    ) -> dict[str, list[Hit]]:
         return blast_remoto_lote(
             consultas,
             self.carpeta_cache,
@@ -116,4 +148,6 @@ class MotorRemoto:
             megablast,
             entrez_query=self.entrez_query,
             tamano_lote=self.tamano_lote,
+            progreso=progreso,
+            cancelado=cancelado,
         )

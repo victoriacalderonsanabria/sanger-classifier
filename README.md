@@ -18,7 +18,7 @@ Está validado sobre 192 cromatogramas reales (96 muestras).
 
 ## Estado
 
-**En modularización (fase 1 lista).** El programa vive en el paquete
+**En modularización (fase 2 lista).** El programa vive en el paquete
 `src/sanger/`. `clasificar_sanger.py` quedó en la raíz como punto de entrada,
 así que se usa exactamente igual que antes, y la ventana actual
 (`sanger_gui.py`) sigue funcionando. Los resultados son idénticos a los del
@@ -28,7 +28,7 @@ script original.
 |---|---|---|
 | 0 | Repositorio, CI, tests de caracterización, referencia de paridad | No |
 | 1 | ✅ Partir el script en módulos (`src/sanger/`) + suite sintética | No |
-| 2 | Pipeline con progreso y cancelación, sin `print` ni `sys.exit` | No |
+| 2 | ✅ Pipeline con progreso y cancelación, sin `print` ni `sys.exit` | No |
 | 3 | Ventana nueva en PySide6 con tabla de resultados | No |
 | 4 | Corrección de errores conocidos del BLAST | **Sí**, documentado |
 | 5 | Vista web con Streamlit (opcional) | No |
@@ -62,6 +62,20 @@ ruff check                      # errores y estilo
 ruff format --check             # formato
 ```
 
+En Windows, `activate` puede fallar con "la ejecución de scripts está
+deshabilitada en este sistema". No hace falta activar nada: se llama al Python
+del entorno directamente, que es exactamente lo mismo.
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\pytest.exe -q
+.\.venv\Scripts\python.exe clasificar_sanger.py -i carpeta_ab1 -o resultados --no-blast
+```
+
+(La otra opción es habilitar los scripts para tu usuario con
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, pero eso ya es una
+decisión sobre la configuración de tu Windows.)
+
 Reglas de trabajo para quien contribuya (personas o agentes): ver
 [`CLAUDE.md`](CLAUDE.md).
 
@@ -87,6 +101,38 @@ tests/
 
 Los módulos marcados como funciones puras no leen archivos ni hablan con BLAST;
 un test (`tests/test_arquitectura.py`) lo verifica leyendo sus `import`.
+
+### Cómo se usa desde otro programa
+
+El núcleo no imprime ni corta el proceso: avisa del avance y levanta
+excepciones. Eso es lo que permite que la ventana muestre una barra de progreso
+y tenga un botón de cancelar.
+
+```python
+from sanger.config import Parametros
+from sanger.errores import Cancelado, SangerError
+from sanger.pipeline import ejecutar
+
+
+def mostrar(p):  # p.etapa, p.hechos, p.total, p.mensaje
+    print(f"[{p.etapa}] {p.hechos}/{p.total} {p.mensaje}")
+
+
+try:
+    resultado = ejecutar(
+        Parametros(entrada="carpeta_ab1", salida="resultados", no_blast=True),
+        progreso=mostrar,
+        cancelado=lambda: False,  # True para cortar la corrida
+    )
+except Cancelado:
+    ...  # lo cancelaron: no es una falla
+except SangerError as e:
+    print(e)  # error previsto, con mensaje para mostrar
+```
+
+Los dos callbacks son opcionales. `cancelado` se consulta entre lecturas, entre
+muestras y entre lotes de BLAST; al cancelar queda en la carpeta de salida lo
+que ya estaba escrito (sirve para relanzar) y no se escribe nada más.
 
 ### Paridad: cómo se verifica que la ciencia no cambió
 

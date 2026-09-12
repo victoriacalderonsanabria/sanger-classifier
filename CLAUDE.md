@@ -155,10 +155,6 @@ Así está desde la fase 1 (salvo `src/sanger_ui/`, que llega en la fase 3).
 `clasificar_sanger.py` en la raíz es solo un punto de entrada que llama a
 `sanger.cli.main`: lo usan la línea de comandos histórica y `sanger_gui.py`.
 
-Pendiente de la fase 2: `pipeline.py`, `blast/remoto.py` y `blast/local.py`
-todavía usan `print` y `sys.exit`, igual que el original. `errores.py` se crea
-en la fase 2, cuando haya excepciones que definir.
-
 ```
 src/sanger/        CORE. No sabe que existe una UI.
   qc/ ensamblado/ clasificacion.py    ← funciones puras
@@ -176,11 +172,20 @@ legacy/            congelado, no se toca
 **En el core:** cero `print` (logging + callback de progreso), cero `sys.exit`
 (excepciones de `errores.py`), `Parametros` es `frozen`.
 
-Contrato:
+Contrato (desde la fase 2):
 
 ```python
-def ejecutar(params, progreso=..., cancelado=...) -> Resultado
+def ejecutar(params, progreso=..., cancelado=..., motor=None) -> Resultado
 ```
+
+- `progreso` recibe un `Progreso(etapa, hechos, total, mensaje, fin)`. La línea
+  de comandos imprime `mensaje` tal cual: por eso la consola sigue idéntica a la
+  del script original. Un aviso sin texto es solo avance.
+- `cancelado` se consulta entre lecturas, entre muestras y entre lotes de BLAST;
+  si devuelve `True` se levanta `Cancelado` y no se escribe nada más.
+- Los mensajes de `logging` no se muestran salvo que el programa que lo usa
+  configure logging (el paquete instala un `NullHandler`). Si se configurara a
+  mano, saldrían por la salida de error y la consola dejaría de ser idéntica.
 
 ---
 
