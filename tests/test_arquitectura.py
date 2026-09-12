@@ -86,6 +86,45 @@ def test_solo_la_linea_de_comandos_usa_el_pipeline():
     assert usan == {"sanger.cli"}
 
 
+def _llamadas_a(ruta: Path, nombres: tuple[str, ...]) -> set[str]:
+    """Busca llamadas como print(...) o sys.exit(...) en el código."""
+    encontradas = set()
+    for nodo in ast.walk(ast.parse(ruta.read_text(encoding="utf-8"))):
+        if not isinstance(nodo, ast.Call):
+            continue
+        f = nodo.func
+        texto = (
+            f.id
+            if isinstance(f, ast.Name)
+            else ast.unparse(f)
+            if isinstance(f, ast.Attribute)
+            else ""
+        )
+        if texto in nombres:
+            encontradas.add(texto)
+    return encontradas
+
+
+def test_el_nucleo_no_imprime_ni_termina_el_proceso():
+    """
+    Cero print y cero sys.exit en el núcleo (BRIEFING §3.3).
+
+    El núcleo avisa por el callback de progreso y levanta excepciones; imprimir
+    o terminar el proceso es decisión de quien lo usa, y por eso `cli.py` queda
+    afuera de esta regla.
+    """
+    for ruta in SANGER.rglob("*.py"):
+        if ruta.name == "cli.py":
+            continue
+        assert _llamadas_a(ruta, ("print", "sys.exit", "exit", "quit")) == set(), ruta
+
+
+def test_la_linea_de_comandos_si_imprime():
+    # si algún día deja de imprimir, la consola dejó de salir y el test de arriba
+    # estaría pasando por casualidad
+    assert "print" in _llamadas_a(SANGER / "cli.py", ("print",))
+
+
 def test_existen_los_modulos_puros():
     # si alguien mueve los archivos, este test tiene que seguir revisando algo
     nombres = {r.relative_to(SANGER).as_posix() for r in PUROS}

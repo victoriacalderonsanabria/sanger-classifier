@@ -10,18 +10,27 @@ mañana se puede enchufar otro motor sin tocar la clasificación.
 from collections.abc import Sequence
 from typing import Protocol
 
-from sanger.modelos import Hit
+from sanger.modelos import Avisar, Hit, PreguntarCancelado
 
 # (nombre de la muestra, secuencia, largo de la secuencia)
 Consulta = tuple[str, str, int]
 
 
 class MotorBlast(Protocol):
-    def buscar(self, consultas: Sequence[Consulta], megablast: bool) -> dict[str, list[Hit]]:
+    def buscar(
+        self,
+        consultas: Sequence[Consulta],
+        megablast: bool,
+        progreso: Avisar = ...,
+        cancelado: PreguntarCancelado = ...,
+    ) -> dict[str, list[Hit]]:
         """
         Devuelve, por nombre de muestra, hasta tres hits de especies distintas.
 
         megablast=True es el algoritmo rápido, para secuencias buenas (CONFIABLES);
         False es blastn, más sensible, para secuencias con errores (DUDOSAS).
+
+        `progreso` informa el avance (un envío, una respuesta) y `cancelado` se
+        consulta entre lotes: si devuelve True, se levanta `Cancelado`.
         """
         ...

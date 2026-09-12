@@ -7,6 +7,7 @@ distintos lugares. Funcionaba, pero para saber qué contenía una muestra había
 que leer todo el programa. Acá cada campo está declarado una vez, con su tipo.
 """
 
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 
@@ -30,6 +31,42 @@ class Senal(StrEnum):
     BUENA = "BUENA"
     PARCIAL = "PARCIAL"
     SIN_SENAL = "SIN_SEÑAL"
+
+
+@dataclass(frozen=True)
+class Progreso:
+    """
+    Un aviso de avance del análisis.
+
+    Reemplaza a los `print` del núcleo. La línea de comandos imprime `mensaje`
+    tal cual (por eso la consola sigue saliendo idéntica) y una ventana puede,
+    además, mover una barra con `hechos` sobre `total`.
+
+    Un aviso con `mensaje` vacío es solo avance: no se muestra texto.
+    `fin` existe porque el original escribe algunos mensajes en dos partes
+    ("enviando lote … " antes de la espera y " 12 s" después), y eso le avisa a
+    quien está esperando que el envío ya salió.
+    """
+
+    etapa: str  # "qc" | "clasificacion" | "comparacion" | "blast" | "informes"
+    hechos: int
+    total: int
+    mensaje: str = ""
+    fin: str = "\n"
+
+
+# Cómo avisa el núcleo que avanzó, y cómo pregunta si lo cancelaron.
+Avisar = Callable[[Progreso], None]
+PreguntarCancelado = Callable[[], bool]
+
+
+def sin_aviso(progreso: Progreso) -> None:
+    """Por defecto no se avisa nada: el núcleo funciona igual sin nadie escuchando."""
+
+
+def nunca_cancelado() -> bool:
+    """Por defecto nadie cancela."""
+    return False
 
 
 @dataclass(frozen=True)

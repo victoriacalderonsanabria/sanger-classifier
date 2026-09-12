@@ -11,7 +11,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from sanger.blast.base import Consulta
-from sanger.modelos import Hit
+from sanger.errores import Cancelado
+from sanger.modelos import Avisar, Hit, PreguntarCancelado, Progreso, nunca_cancelado, sin_aviso
 
 
 def cargar_fixture(ruta: Path) -> list[Hit]:
@@ -29,12 +30,21 @@ class MotorFalso:
         self.asignaciones = dict(asignaciones)
         self.llamadas: list[tuple[tuple[str, ...], bool]] = []  # para verificar en tests
 
-    def buscar(self, consultas: Sequence[Consulta], megablast: bool) -> dict[str, list[Hit]]:
+    def buscar(
+        self,
+        consultas: Sequence[Consulta],
+        megablast: bool,
+        progreso: Avisar = sin_aviso,
+        cancelado: PreguntarCancelado = nunca_cancelado,
+    ) -> dict[str, list[Hit]]:
         self.llamadas.append((tuple(n for n, _, _ in consultas), megablast))
         resultado = {}
-        for nombre, _, _ in consultas:
+        for hechas, (nombre, _, _) in enumerate(consultas):
+            if cancelado():
+                raise Cancelado("cancelado durante el BLAST")
             fixture = self.asignaciones.get(nombre)
             resultado[nombre] = (
                 cargar_fixture(self.carpeta_fixtures / f"{fixture}.json") if fixture else []
             )
+            progreso(Progreso("blast", hechas + 1, len(consultas)))
         return resultado

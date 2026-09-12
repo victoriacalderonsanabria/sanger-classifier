@@ -1,7 +1,7 @@
 """BLAST con blastn instalado en la máquina (BLAST+), contra una base propia."""
 
+import logging
 import subprocess
-import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -9,10 +9,21 @@ from Bio.Blast import NCBIXML
 
 from sanger.blast.base import Consulta
 from sanger.blast.interpretacion import resumir_hits
-from sanger.modelos import Hit
+from sanger.errores import BlastError, Cancelado
+from sanger.modelos import Avisar, Hit, PreguntarCancelado, Progreso, nunca_cancelado, sin_aviso
+
+log = logging.getLogger(__name__)
 
 
-def blast_local(nombre: str, seq: str, carpeta_xml: Path, db: str, megablast=True, n_hits=10):
+def blast_local(
+    nombre: str,
+    seq: str,
+    carpeta_xml: Path,
+    db: str,
+    megablast=True,
+    n_hits=10,
+    progreso: Avisar = sin_aviso,
+):
     """
     Corre blastn y devuelve el registro de Biopython (o None si falló).
 
@@ -29,11 +40,16 @@ def blast_local(nombre: str, seq: str, carpeta_xml: Path, db: str, megablast=Tru
         ]  # fmt: skip
         try:
             subprocess.run(cmd, check=True, capture_output=True, text=True)
-        except FileNotFoundError:
-            # (fase 2: esto pasa a ser una excepción, no un sys.exit)
-            sys.exit("No encuentro 'blastn'. Instalá BLAST+ (sudo apt install ncbi-blast+).")
+        except FileNotFoundError as e:
+            raise BlastError(
+                "No encuentro 'blastn'. Instalá BLAST+ (sudo apt install ncbi-blast+)."
+            ) from e
         except subprocess.CalledProcessError as e:
-            print(f"   [BLAST local] falló para {nombre}: {e.stderr.strip()}")
+            # una muestra que falla no corta la corrida: queda sin hits
+            log.warning("blastn falló para %s: %s", nombre, e.stderr.strip())
+            progreso(
+                Progreso("blast", 0, 0, f"   [BLAST local] falló para {nombre}: {e.stderr.strip()}")
+            )
             return None
     with open(xml) as fh:
         return NCBIXML.read(fh)
@@ -46,10 +62,18 @@ class MotorLocal:
         self.carpeta_xml = carpeta_xml
         self.db = db
 
-    def buscar(self, consultas: Sequence[Consulta], megablast: bool) -> dict[str, list[Hit]]:
-        return {
-            nombre: resumir_hits(
-                blast_local(nombre, seq, self.carpeta_xml, self.db, megablast), largo
-            )
-            for nombre, seq, largo in consultas
-        }
+    def buscar(
+        self,
+        consultas: Sequence[Consulta],
+        megablast: bool,
+        progreso: Avisar = sin_aviso,
+        cancelado: PreguntarCancelado = nunca_cancelado,
+    ) -> dict[str, list[Hit]]:
+        resultados = {}
+        for hechas, (nombre, seq, largo) in enumerate(consultas):
+            if cancelado():
+                raise Cancelado("cancelado durante el BLAST local")
+            rec = blast_local(nombre, seq, self.carpeta_xml, self.db, megablast, progreso=progreso)
+            resultados[nombre] = resumir_hits(rec, largo)
+            progreso(Progreso("blast", hechas + 1, len(consultas)))
+        return resultados

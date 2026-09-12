@@ -18,8 +18,7 @@ import pytest
 
 import paridad
 from generar_goldens import normalizar_salida
-from sanger.config import Parametros
-from sanger.pipeline import ejecutar
+from sanger.cli import main
 from tests.sintetico.corrida import armar_corrida, preparar_cache_blast
 
 GOLDEN = Path(__file__).parent / "golden"
@@ -36,11 +35,15 @@ def test_salida_identica_al_golden(variante, entrada, tmp_path, fixtures_blast):
     if variante == "con_blast":
         # el BLAST remoto usa el caché y no consulta a NCBI (y la red está bloqueada)
         preparar_cache_blast(salida, fixtures_blast)
-    params = Parametros(entrada=entrada, salida=salida, no_blast=variante == "sin_blast")
+    argv = ["-i", str(entrada), "-o", str(salida)]
+    if variante == "sin_blast":
+        argv.append("--no-blast")
 
+    # se corre por la línea de comandos porque es la que imprime: desde la
+    # fase 2 el núcleo no imprime, avisa
     consola = io.StringIO()
     with redirect_stdout(consola):
-        ejecutar(params)
+        main(argv)
     normalizar_salida(salida, entrada, consola.getvalue())
 
     referencia = GOLDEN / variante
