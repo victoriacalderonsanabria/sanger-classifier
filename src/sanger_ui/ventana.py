@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sanger.config import PRESETS, Parametros, preset
+from sanger.config import PRESETS, Parametros, valores_de_preset
 from sanger.errores import Cancelado
 from sanger.modelos import Grupo, Progreso, Resultado
 from sanger_ui import preferencias
@@ -134,11 +134,14 @@ class Ventana(QMainWindow):
         form = QFormLayout(grupo_blast)
         self.v_preset = QComboBox()
         self.v_preset.addItems([p.nombre for p in PRESETS])
-        self.v_preset.currentTextChanged.connect(self._aplicar_preset)
+        # por índice y no por texto: al marcar "(modificado)" cambia el texto,
+        # y buscar el preset por ese texto no encontraría nada
+        self.v_preset.currentIndexChanged.connect(self._elegir_preset)
         form.addRow("Preset:", self.v_preset)
         self.v_db = QComboBox()
         self.v_db.setEditable(True)
         self.v_db.addItems(BASES)
+        self.v_db.currentTextChanged.connect(self._refrescar_marca_preset)
         form.addRow("Base de datos:", self.v_db)
         self.v_taxon = QComboBox()
         self.v_taxon.setEditable(True)
@@ -158,6 +161,8 @@ class Ventana(QMainWindow):
         self.v_largo_laxo = self._entero(1, 5000, 60)
         self.v_ident = self._decimal(50.0, 100.0, 97.0)
         self.v_lote = self._entero(1, 100, 50)
+        for campo in (self.v_largo, self.v_largo_laxo, self.v_ident, self.v_lote):
+            campo.valueChanged.connect(self._refrescar_marca_preset)
         form.addRow(
             "Largo mínimo CONFIABLE (pb):",
             self._con_ayuda(self.v_largo, "300–400 para COI Folmer / 16S completo"),
@@ -289,14 +294,41 @@ class Ventana(QMainWindow):
         if entrada and not self.v_salida.text():
             self.v_salida.setText(str(Path(entrada) / "resultados"))
 
-    def _aplicar_preset(self, nombre: str) -> None:
-        cambios = preset(nombre).cambios
-        if "largo_min" in cambios:
-            self.v_largo.setValue(cambios["largo_min"])
-        if "ident_min" in cambios:
-            self.v_ident.setValue(cambios["ident_min"])
-        if "db" in cambios:
-            self.v_db.setCurrentText(cambios["db"])
+    def preset_elegido(self) -> str:
+        """El nombre del preset seleccionado, sin el sufijo de modificado."""
+        return PRESETS[max(self.v_preset.currentIndex(), 0)].nombre
+
+    def _elegir_preset(self, indice: int) -> None:
+        """Carga en los campos los valores del preset (todos, no solo los que cambia)."""
+        valores = valores_de_preset(PRESETS[indice].nombre)
+        self.v_largo.setValue(valores["largo_min"])
+        self.v_largo_laxo.setValue(valores["largo_min_laxo"])
+        self.v_ident.setValue(valores["ident_min"])
+        self.v_lote.setValue(valores["lote"])
+        self.v_db.setCurrentText(valores["db"])
+        self._refrescar_marca_preset()
+
+    def valores_cargados(self) -> dict:
+        return {
+            "largo_min": self.v_largo.value(),
+            "largo_min_laxo": self.v_largo_laxo.value(),
+            "ident_min": self.v_ident.value(),
+            "lote": self.v_lote.value(),
+            "db": self.v_db.currentText().strip(),
+        }
+
+    def _refrescar_marca_preset(self) -> None:
+        """
+        Marca el preset como modificado si algún valor ya no es el suyo.
+
+        Se muestra "Default (modificado)" en vez de cambiar de preset: así el
+        usuario ve cuál eligió y que además tocó algo. Vuelve solo si los
+        valores coinciden de nuevo.
+        """
+        indice = max(self.v_preset.currentIndex(), 0)
+        nombre = PRESETS[indice].nombre
+        modificado = self.valores_cargados() != valores_de_preset(nombre)
+        self.v_preset.setItemText(indice, f"{nombre} (modificado)" if modificado else nombre)
 
     def parametros(self) -> Parametros:
         """Lo cargado en la pestaña de configuración, como Parametros del núcleo."""
@@ -427,15 +459,16 @@ class Ventana(QMainWindow):
             self.v_db.setCurrentText(prefs["db"])
         if prefs.get("taxon"):
             self.v_taxon.setCurrentText(prefs["taxon"])
-        if prefs.get("preset"):
-            self.v_preset.setCurrentText(prefs["preset"])
+        nombres = [p.nombre for p in PRESETS]
+        if prefs.get("preset") in nombres:
+            self.v_preset.setCurrentIndex(nombres.index(prefs["preset"]))
 
     def preferencias_actuales(self) -> dict:
         return {
             "email": self.v_email.text().strip(),
             "entrada": self.v_entrada.text().strip(),
             "salida": self.v_salida.text().strip(),
-            "preset": self.v_preset.currentText(),
+            "preset": self.preset_elegido(),
             "db": self.v_db.currentText().strip(),
             "taxon": self.v_taxon.currentText().strip(),
         }

@@ -163,7 +163,9 @@ de verdad sigue siendo una prueba manual.
 
 **Presets** (`config.py`): los valores salen de `README_clasificar_sanger.md`.
 **Están pendientes de que Victoria los confirme**; hasta entonces, el que viene
-elegido es "Personalizado", que no cambia nada.
+elegido es "Default", que son los valores por defecto del pipeline. Si el
+usuario edita un umbral, el combo muestra `(modificado)` en vez de cambiar de
+preset: así se ve cuál eligió y que además tocó algo.
 
 ```
 src/sanger/        CORE. No sabe que existe una UI.

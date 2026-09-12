@@ -111,8 +111,8 @@ class Preset:
 # corto de ~260 pb, por eso largo mínimo 100 y no 300.
 PRESETS = (
     Preset(
-        "Personalizado",
-        "Los valores que estén cargados; no toca nada.",
+        "Default",
+        "Los valores por defecto del pipeline, validados con el ensayo de ingestas.",
         {},
     ),
     Preset(
@@ -143,3 +143,14 @@ def preset(nombre: str) -> Preset:
 def aplicar_preset(params: Parametros, nombre: str) -> Parametros:
     """Devuelve los parámetros con los valores del preset aplicados."""
     return params.con(**preset(nombre).cambios)
+
+
+# Los campos que un preset puede tocar y que se ven en la ventana. Sirven para
+# saber si lo que hay cargado sigue siendo el preset o el usuario lo modificó.
+CAMPOS_PRESET = ("largo_min", "largo_min_laxo", "ident_min", "lote", "db")
+
+
+def valores_de_preset(nombre: str) -> dict:
+    """Qué valores deja ese preset en los campos que se muestran."""
+    p = aplicar_preset(Parametros(entrada="."), nombre)
+    return {campo: getattr(p, campo) for campo in CAMPOS_PRESET}

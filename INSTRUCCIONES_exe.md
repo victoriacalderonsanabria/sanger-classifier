@@ -40,8 +40,10 @@ abrir). La ventana tiene tres pestañas.
 2. **E-mail**: cualquiera propio. NCBI lo pide para el BLAST remoto. Queda
    guardado para la próxima vez, en tu computadora (`~/.sanger/config.json`).
 3. **Preset**: carga de una los umbrales típicos de un marcador (COI Folmer,
-   16S bacteriano, ITS de hongos). "Personalizado" no toca nada. Después de
-   elegir uno se puede seguir ajustando a mano.
+   16S bacteriano, ITS de hongos). **Default** son los valores por defecto del
+   pipeline, los validados con el ensayo de ingestas. Después de elegir uno se
+   puede seguir ajustando a mano: si algún valor deja de ser el del preset, el
+   combo lo avisa con `(modificado)`.
 4. **Base de datos**: dejar `nt` salvo indicación contraria. Para marcadores
    mitocondriales (COI, cytb) `mito` es bastante más rápida.
 5. **Restringir a**: opcional. `Vertebrata[Organism]` si se buscan hospedadores

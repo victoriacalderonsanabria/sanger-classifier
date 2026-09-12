@@ -8,6 +8,7 @@ SystemExit.
 """
 
 import pytest
+from Bio import SeqIO
 
 from sanger.blast.falso import MotorFalso
 from sanger.config import Parametros
@@ -117,6 +118,32 @@ def test_cancelar_durante_el_blast(params, entrada, fixtures_blast):
         ejecutar(con_blast, cancelado=_cancelar_en(45), motor=motor)
     assert (params.salida / "02_confiables.fasta").exists()
     assert not (params.salida / "04_resultados.csv").exists()
+
+
+def test_cancelar_no_deja_archivos_a_medio_escribir(params, entrada, fixtures_blast):
+    """
+    Regresión del punto 4 del FEEDBACK_FASE3: cancelar corta la corrida y lo que
+    quedó escrito está completo.
+
+    Importa porque esos archivos parciales son los que alguien puede abrir
+    creyendo que son el resultado: un CSV cortado a la mitad sería peor que no
+    tener nada.
+    """
+    con_blast = Parametros(entrada=entrada, salida=params.salida, no_blast=False)
+    motor = MotorFalso(fixtures_blast, FIXTURE_POR_MUESTRA)
+    with pytest.raises(Cancelado):
+        ejecutar(con_blast, cancelado=_cancelar_en(45), motor=motor)
+
+    # lo que alcanzó a escribirse está entero
+    qc = (params.salida / "01_QC_lecturas.csv").read_text(encoding="utf-8-sig")
+    assert len(qc.strip().splitlines()) == 27  # encabezado + 26 cromatogramas
+    confiables = list(SeqIO.parse(params.salida / "02_confiables.fasta", "fasta"))
+    assert len(confiables) == 10 and all(len(r.seq) > 0 for r in confiables)
+    assert list(SeqIO.parse(params.salida / "03_dudosas.fasta", "fasta"))
+
+    # y lo que no llegó a escribirse, no existe: nadie va a confundirlo con el resultado
+    for informe in ("04_resultados.csv", "05_hits_completos.json", "00_resumen.txt"):
+        assert not (params.salida / informe).exists(), informe
 
 
 def test_sin_cancelar_no_se_cancela(params):
