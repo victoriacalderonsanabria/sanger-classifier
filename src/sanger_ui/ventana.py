@@ -10,9 +10,10 @@ para saber cómo había salido la corrida.
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
-from PySide6.QtCore import QSortFilterProxyModel, Qt, QUrl
+from PySide6.QtCore import QSortFilterProxyModel, Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -40,7 +41,7 @@ from PySide6.QtWidgets import (
 from sanger.config import PRESETS, Parametros, valores_de_preset
 from sanger.errores import Cancelado
 from sanger.modelos import Grupo, Progreso, Resultado
-from sanger_ui import preferencias
+from sanger_ui import avance, preferencias
 from sanger_ui.modelo_tabla import COLUMNA_ACCESSION, ModeloMuestras, url_ncbi
 from sanger_ui.worker import Worker
 
@@ -54,6 +55,14 @@ TAXONES = [
     "(sin filtro)", "Vertebrata[Organism]", "Mammalia[Organism]", "Aves[Organism]",
     "Insecta[Organism]", "Bacteria[Organism]", "Fungi[Organism]", "Viridiplantae[Organism]",
 ]  # fmt: skip
+
+ETAPAS_CORTAS = {
+    "qc": "Control de calidad",
+    "clasificacion": "Clasificación",
+    "comparacion": "Comparación",
+    "blast": "BLAST",
+    "informes": "Informes",
+}
 
 ETAPAS = {
     "qc": "Leyendo cromatogramas y evaluando calidad",
@@ -99,6 +108,9 @@ class Ventana(QMainWindow):
         self.resize(1000, 700)
         self.worker: Worker | None = None
         self.resultado: Resultado | None = None
+        self.etapa_actual = ""
+        self.detalle = ""
+        self.desde = time.monotonic()
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self._tab_configuracion(), "Configuración")
@@ -188,13 +200,23 @@ class Ventana(QMainWindow):
         layout = QVBoxLayout(w)
         self.etiqueta_etapa = QLabel("Listo para empezar.")
         self.barra = QProgressBar()
+        self.barra.setRange(0, 100)
         self.barra.setTextVisible(True)
+        # Línea viva: qué está haciendo y desde hace cuánto. Es lo que dice que
+        # el programa está trabajando cuando la barra no se mueve (la espera de
+        # NCBI puede ser de minutos).
+        self.etiqueta_estado = QLabel("")
+        self.etiqueta_estado.setStyleSheet("color: gray;")
+        self.cronometro = QTimer(self)
+        self.cronometro.setInterval(1000)
+        self.cronometro.timeout.connect(self._refrescar_estado)
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
         self.log.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.log.setStyleSheet("font-family: Consolas, monospace; font-size: 9pt;")
         layout.addWidget(self.etiqueta_etapa)
         layout.addWidget(self.barra)
+        layout.addWidget(self.etiqueta_estado)
         layout.addWidget(self.log)
         return w
 
@@ -367,7 +389,9 @@ class Ventana(QMainWindow):
         self.guardar_preferencias()
         self.log.clear()
         self.modelo.poner([])
-        self.barra.setRange(0, 0)
+        self.barra.setValue(0)
+        self.etapa_actual, self.detalle, self.desde = "", "", time.monotonic()
+        self.cronometro.start()
         self.tabs.setCurrentIndex(1)
         self._actualizar_botones(corriendo=True)
         self.estado.setText("Analizando…")
@@ -387,11 +411,24 @@ class Ventana(QMainWindow):
 
     def en_progreso(self, progreso: Progreso) -> None:
         self.etiqueta_etapa.setText(ETAPAS.get(progreso.etapa, progreso.etapa))
-        if progreso.total:
-            self.barra.setRange(0, progreso.total)
-            self.barra.setValue(progreso.hechos)
-        else:
-            self.barra.setRange(0, 0)  # sin total conocido: barra indeterminada
+        self.barra.setValue(avance.porcentaje(progreso.etapa, progreso.hechos, progreso.total))
+        if progreso.detalle and progreso.detalle != self.detalle:
+            # empezó algo nuevo: el cronómetro cuenta desde acá
+            self.detalle = progreso.detalle
+            self.desde = time.monotonic()
+        self.etapa_actual = progreso.etapa
+        self._refrescar_estado()
+
+    def _refrescar_estado(self) -> None:
+        """La línea viva: etapa · qué está haciendo · desde hace cuánto."""
+        if not self.etapa_actual:
+            self.etiqueta_estado.setText("")
+            return
+        partes = [ETAPAS_CORTAS.get(self.etapa_actual, self.etapa_actual)]
+        if self.detalle:
+            partes.append(self.detalle)
+        partes.append(avance.reloj(time.monotonic() - self.desde))
+        self.etiqueta_estado.setText(" · ".join(partes))
 
     def en_log(self, texto: str) -> None:
         self.log.moveCursor(self.log.textCursor().MoveOperation.End)
@@ -399,13 +436,21 @@ class Ventana(QMainWindow):
         self.log.ensureCursorVisible()
 
     def en_terminado(self, resultado: Resultado) -> None:
+        self.cronometro.stop()
         self.resultado = resultado
         self.modelo.poner(resultado.muestras)
         self.tabla.resizeColumnsToContents()
         self.tabs.setCurrentIndex(2)
-        self.barra.setRange(0, 1)
-        self.barra.setValue(1)
+        self.barra.setValue(100)
         self.etiqueta_etapa.setText("Listo.")
+        self.etiqueta_estado.setText(
+            f"Terminó en {avance.reloj(resultado.segundos_total)}"
+            + (
+                f", de los cuales {avance.reloj(resultado.segundos_blast)} de BLAST"
+                if resultado.segundos_blast
+                else ""
+            )
+        )
         confiables = len(resultado.del_grupo(Grupo.CONFIABLE))
         dudosas = len(resultado.del_grupo(Grupo.DUDOSA))
         rechazadas = len(resultado.del_grupo(Grupo.RECHAZADA))
@@ -415,8 +460,8 @@ class Ventana(QMainWindow):
         self._actualizar_botones(corriendo=False)
 
     def en_error(self, error: Exception) -> None:
-        self.barra.setRange(0, 1)
-        self.barra.setValue(0)
+        self.cronometro.stop()
+        self.etiqueta_estado.setText("")
         self._actualizar_botones(corriendo=False)
         if isinstance(error, Cancelado):
             self.etiqueta_etapa.setText("Cancelado.")

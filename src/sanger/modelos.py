@@ -46,6 +46,10 @@ class Progreso:
     `fin` existe porque el original escribe algunos mensajes en dos partes
     ("enviando lote … " antes de la espera y " 12 s" después), y eso le avisa a
     quien está esperando que el envío ya salió.
+
+    `detalle` es para la línea de estado de una ventana ("lote 2 de 3 ·
+    esperando respuesta de NCBI"). No se imprime: la consola tiene que seguir
+    saliendo igual que la del script original.
     """
 
     etapa: str  # "qc" | "clasificacion" | "comparacion" | "blast" | "informes"
@@ -53,6 +57,7 @@ class Progreso:
     total: int
     mensaje: str = ""
     fin: str = "\n"
+    detalle: str = ""
 
 
 # Cómo avisa el núcleo que avanzó, y cómo pregunta si lo cancelaron.

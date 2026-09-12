@@ -230,6 +230,94 @@ def test_local_si_blastn_falla_la_muestra_queda_sin_hits(tmp_path, monkeypatch):
     assert any("[BLAST local] falló para M1: BLAST Database error" in p.mensaje for p in avisos)
 
 
+def _sin_red(monkeypatch, respuesta: str | None = None):
+    """Reemplaza a NCBI: devuelve `respuesta` o falla, y no espera entre intentos."""
+
+    class Handle:
+        def read(self):
+            return respuesta
+
+        def close(self):
+            pass
+
+    def qblast(**kwargs):
+        if respuesta is None:
+            raise ConnectionError("sin red en tests")
+        return Handle()
+
+    monkeypatch.setattr(remoto.NCBIWWW, "qblast", qblast)
+    monkeypatch.setattr(remoto.time, "sleep", lambda s: None)
+
+
+def test_remoto_avisa_cuantas_van_a_cache_y_cuantas_se_consultan(
+    tmp_path, fixtures_blast, monkeypatch
+):
+    _sin_red(monkeypatch)
+    hits = (fixtures_blast / "hit_claro.json").read_text(encoding="utf-8")
+    (tmp_path / "M1.hits.json").write_text(hits, encoding="utf-8")
+    avisos = []
+    items = [(f"M{i}", "ACGT", 4) for i in range(1, 6)]
+    remoto.blast_remoto_lote(items, tmp_path, tamano_lote=2, progreso=avisos.append)
+
+    # el caché se resuelve al instante: se avisa antes de empezar a consultar
+    assert avisos[0].detalle == "5 muestras · 1 en caché · 4 a consultar en 2 lotes"
+    assert (avisos[0].hechos, avisos[0].total) == (1, 5)
+    assert avisos[0].mensaje == ""  # no se imprime: la consola no cambia
+
+
+def test_remoto_con_todo_en_cache_avisa_que_no_consulta_nada(tmp_path, fixtures_blast, monkeypatch):
+    monkeypatch.setattr(remoto.NCBIWWW, "qblast", _qblast_prohibido)
+    hits = (fixtures_blast / "hit_claro.json").read_text(encoding="utf-8")
+    (tmp_path / "M1.hits.json").write_text(hits, encoding="utf-8")
+    avisos = []
+    remoto.blast_remoto_lote([("M1", "ACGT", 4)], tmp_path, progreso=avisos.append)
+    assert avisos[0].detalle == "1 muestras · 1 en caché · nada para consultar"
+    assert (avisos[0].hechos, avisos[0].total) == (1, 1)
+
+
+def test_remoto_avisa_el_lote_y_que_esta_esperando(tmp_path, monkeypatch):
+    _sin_red(monkeypatch)
+    avisos = []
+    items = [(f"M{i}", "ACGT", 4) for i in range(3)]
+    remoto.blast_remoto_lote(items, tmp_path, tamano_lote=2, progreso=avisos.append)
+    detalles = [a.detalle for a in avisos if a.detalle]
+    assert "lote 1 de 2 · esperando respuesta de NCBI" in detalles
+    assert "lote 1 de 2 · reintento 3 de 3" in detalles
+    assert "lote 2 de 2 · esperando respuesta de NCBI" in detalles
+
+
+def test_los_mensajes_que_se_imprimen_siguen_siendo_los_mismos(tmp_path, monkeypatch):
+    # la consola no cambia: lo nuevo viaja en `detalle`, que no se imprime
+    _sin_red(monkeypatch)
+    avisos = []
+    remoto.blast_remoto_lote([("M1", "ACGT", 4)], tmp_path, progreso=avisos.append)
+    impresos = [(a.mensaje, a.fin) for a in avisos if a.mensaje]
+    assert impresos == [
+        ("   enviando lote de 1 secuencias a NCBI (nt, megablast) ...", ""),
+        ("\n   [BLAST] intento 1 falló: sin red en tests", "\n"),
+        ("\n   [BLAST] intento 2 falló: sin red en tests", "\n"),
+        ("\n   [BLAST] intento 3 falló: sin red en tests", "\n"),
+        (" 0 s", "\n"),
+    ]
+
+
+def test_los_xml_crudos_de_cada_grupo_ya_no_se_pisan(tmp_path, monkeypatch):
+    """
+    Antes, CONFIABLES y DUDOSAS escribían las dos un `lote_1.xml`, porque la
+    numeración arranca de nuevo en cada llamada: el XML del primer grupo se
+    perdía. (Se vio en la corrida real: 60 .hits.json y un solo lote_1.xml.)
+    """
+    _sin_red(monkeypatch, respuesta="<BlastOutput></BlastOutput>")
+    monkeypatch.setattr(remoto.NCBIXML, "parse", lambda handle: [])
+    motor = remoto.MotorRemoto(tmp_path, "nt", None, 50)
+    motor.buscar([("M1", "ACGT", 4)], megablast=True)
+    motor.buscar([("M2", "ACGT", 4)], megablast=False)
+    assert sorted(p.name for p in tmp_path.glob("*.xml")) == [
+        "lote_blastn_1.xml",
+        "lote_megablast_1.xml",
+    ]
+
+
 def test_remoto_se_puede_cancelar_antes_de_enviar_un_lote(tmp_path, monkeypatch):
     monkeypatch.setattr(remoto.NCBIWWW, "qblast", _qblast_prohibido)
     with pytest.raises(Cancelado):

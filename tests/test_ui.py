@@ -232,13 +232,58 @@ def test_analizar_con_blast_pide_el_mail(ventana, tmp_path, monkeypatch):
 # ----------------------------------------------------------------------------
 
 
-def test_la_barra_sigue_el_avance(ventana):
-    ventana.en_progreso(Progreso("qc", 3, 26, "  archivo.ab1 ..."))
-    assert (ventana.barra.value(), ventana.barra.maximum()) == (3, 26)
+def test_la_barra_reparte_el_avance_por_etapa(ventana):
+    # el QC entero son 10 puntos de 100, aunque sean 26 de 26 cromatogramas:
+    # el BLAST es el que se lleva el tiempo
+    ventana.en_progreso(Progreso("qc", 13, 26, "  archivo.ab1 ..."))
+    assert ventana.barra.value() == 5
     assert "calidad" in ventana.etiqueta_etapa.text()
-    ventana.en_progreso(Progreso("blast", 0, 0))
-    assert ventana.barra.maximum() == 0  # sin total: barra indeterminada
+    ventana.en_progreso(Progreso("qc", 26, 26))
+    assert ventana.barra.value() == 10
+    ventana.en_progreso(Progreso("blast", 48, 96))
+    assert ventana.barra.value() == 58
     assert "NCBI" in ventana.etiqueta_etapa.text()
+    ventana.en_progreso(Progreso("informes", 1, 1))
+    assert ventana.barra.value() == 100
+
+
+def test_la_linea_de_estado_dice_que_esta_haciendo_y_desde_cuando(ventana):
+    ventana.en_progreso(
+        Progreso("blast", 44, 96, detalle="lote 2 de 3 · esperando respuesta de NCBI")
+    )
+    assert ventana.etiqueta_estado.text() == (
+        "BLAST · lote 2 de 3 · esperando respuesta de NCBI · 0s"
+    )
+
+
+def test_el_cronometro_corre_aunque_la_barra_no_se_mueva(ventana, monkeypatch):
+    # es lo que dice que el programa está vivo durante la espera de NCBI
+    reloj = iter([100.0, 100.0, 142.0, 142.0])
+    monkeypatch.setattr("sanger_ui.ventana.time.monotonic", lambda: next(reloj))
+    ventana.en_progreso(
+        Progreso("blast", 0, 96, detalle="lote 1 de 2 · esperando respuesta de NCBI")
+    )
+    ventana._refrescar_estado()
+    assert ventana.etiqueta_estado.text().endswith("· 42s")
+    assert ventana.barra.value() == 20  # la barra no se movió, el reloj sí
+
+
+def test_el_cronometro_vuelve_a_cero_cuando_empieza_otra_cosa(ventana, monkeypatch):
+    reloj = iter([10.0, 10.0, 70.0, 70.0])
+    monkeypatch.setattr("sanger_ui.ventana.time.monotonic", lambda: next(reloj))
+    ventana.en_progreso(
+        Progreso("blast", 0, 96, detalle="lote 1 de 2 · esperando respuesta de NCBI")
+    )
+    ventana.en_progreso(
+        Progreso("blast", 48, 96, detalle="lote 2 de 2 · esperando respuesta de NCBI")
+    )
+    assert ventana.etiqueta_estado.text().endswith("lote 2 de 2 · esperando respuesta de NCBI · 0s")
+
+
+def test_al_terminar_se_informa_cuanto_tardo(ventana, muestras):
+    ventana.en_terminado(Resultado([], muestras, 165.0, 142.0))
+    assert ventana.barra.value() == 100
+    assert ventana.etiqueta_estado.text() == "Terminó en 2m 45s, de los cuales 2m 22s de BLAST"
 
 
 def test_el_log_va_mostrando_lo_que_avisa_el_nucleo(ventana):
