@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from sanger.config import Parametros
+from sanger.config import PRESETS, Parametros, aplicar_preset
 
 
 def test_valores_por_defecto_son_los_validados():
@@ -39,3 +39,48 @@ def test_separador_define_formato_de_csv():
 def test_separador_invalido():
     with pytest.raises(ValueError, match="separador"):
         Parametros(entrada="x", separador="tab")
+
+
+def test_con_devuelve_una_copia_sin_tocar_la_original():
+    p = Parametros(entrada="x")
+    otro = p.con(largo_min=300)
+    assert (otro.largo_min, p.largo_min) == (300, 100)
+    assert otro.entrada == p.entrada
+
+
+# ----------------------------------------------------------------------------
+# Presets (los valores salen de README_clasificar_sanger.md)
+# ----------------------------------------------------------------------------
+
+
+def test_personalizado_no_cambia_nada():
+    p = Parametros(entrada="x", largo_min=123)
+    assert aplicar_preset(p, "Personalizado") == p
+
+
+def test_preset_coi_folmer_sube_el_largo_minimo():
+    p = aplicar_preset(Parametros(entrada="x"), "COI Folmer (~650 pb)")
+    assert p.largo_min == 300
+    assert (p.ident_min, p.db) == (97.0, "nt")  # lo demás queda como estaba
+
+
+def test_preset_16s_bacteriano():
+    p = aplicar_preset(Parametros(entrada="x"), "16S bacteriano")
+    assert (p.largo_min, p.ident_min, p.db) == (300, 98.7, "16S_ribosomal_RNA")
+
+
+def test_preset_its_hongos_solo_cambia_la_base():
+    p = aplicar_preset(Parametros(entrada="x"), "ITS hongos")
+    assert p.db == "ITS_RefSeq_Fungi"
+    assert (p.largo_min, p.ident_min) == (100, 97.0)
+
+
+def test_los_presets_solo_tocan_campos_que_existen():
+    campos = {f.name for f in dataclasses.fields(Parametros)}
+    for p in PRESETS:
+        assert set(p.cambios) <= campos, p.nombre
+
+
+def test_preset_inexistente():
+    with pytest.raises(KeyError):
+        aplicar_preset(Parametros(entrada="x"), "Marcador inventado")

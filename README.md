@@ -18,18 +18,18 @@ Está validado sobre 192 cromatogramas reales (96 muestras).
 
 ## Estado
 
-**En modularización (fase 2 lista).** El programa vive en el paquete
-`src/sanger/`. `clasificar_sanger.py` quedó en la raíz como punto de entrada,
-así que se usa exactamente igual que antes, y la ventana actual
-(`sanger_gui.py`) sigue funcionando. Los resultados son idénticos a los del
-script original.
+**En modularización (fase 3 lista).** El programa vive en el paquete
+`src/sanger/` y la ventana, nueva, en `src/sanger_ui/`.
+`clasificar_sanger.py` quedó en la raíz como punto de entrada de la línea de
+comandos, que se usa exactamente igual que antes. Los resultados son idénticos
+a los del script original.
 
 | Fase | Qué | Cambia la salida |
 |---|---|---|
 | 0 | Repositorio, CI, tests de caracterización, referencia de paridad | No |
 | 1 | ✅ Partir el script en módulos (`src/sanger/`) + suite sintética | No |
 | 2 | ✅ Pipeline con progreso y cancelación, sin `print` ni `sys.exit` | No |
-| 3 | Ventana nueva en PySide6 con tabla de resultados | No |
+| 3 | ✅ Ventana nueva en PySide6 con tabla de resultados | No |
 | 4 | Corrección de errores conocidos del BLAST | **Sí**, documentado |
 | 5 | Vista web con Streamlit (opcional) | No |
 
@@ -45,10 +45,17 @@ python clasificar_sanger.py -i carpeta_ab1 -o resultados --no-blast
 python clasificar_sanger.py -i carpeta_ab1 -o resultados --email tu@mail.com
 ```
 
+Con ventana (barra de progreso, botón de cancelar y tabla de resultados):
+
+```powershell
+pip install -e ".[ui]"     # agrega PySide6
+python -m sanger_ui
+```
+
 - [`README_clasificar_sanger.md`](README_clasificar_sanger.md): documentación
   completa: opciones, criterios, qué significa cada columna de la salida.
 - [`INSTRUCCIONES_exe.md`](INSTRUCCIONES_exe.md): cómo construir y usar el
-  ejecutable de Windows.
+  ejecutable de Windows (`scripts\construir_exe.ps1`).
 
 ## Desarrollo
 
@@ -92,7 +99,9 @@ src/sanger/
   blast/             NCBI remoto, blastn local, motor falso para tests, interpretación
   pipeline.py        el único que orquesta los pasos
   cli.py             la línea de comandos
+src/sanger_ui/       la ventana (PySide6): app, ventana, worker, tabla, preferencias
 clasificar_sanger.py punto de entrada histórico (llama a sanger.cli)
+scripts/             paridad, goldens y la construcción del .exe (sanger.spec)
 tests/
   sintetico/         generador de lecturas por perfil, escritor de .ab1, corrida estándar
   fixtures/blast/    respuestas de BLAST preparadas

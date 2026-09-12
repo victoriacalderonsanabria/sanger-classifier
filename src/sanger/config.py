@@ -11,7 +11,7 @@ cambiar un umbral a mitad de camino y dejar muestras clasificadas con
 criterios distintos dentro del mismo informe.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 SEPARADORES = ("punto_y_coma", "coma")
@@ -79,6 +79,10 @@ class Parametros:
         if self.separador not in SEPARADORES:
             raise ValueError(f"separador tiene que ser uno de {SEPARADORES}, no {self.separador!r}")
 
+    def con(self, **cambios) -> "Parametros":
+        """Una copia con algunos valores cambiados (no se modifica la original)."""
+        return replace(self, **cambios)
+
     @property
     def sep_csv(self) -> str:
         """Separador de columnas: ';' para Excel en español, ',' para pandas/R."""
@@ -88,3 +92,54 @@ class Parametros:
     def decimal_coma(self) -> bool:
         """Excel en español espera '99,38'; pandas y R esperan '99.38'."""
         return self.separador == "punto_y_coma"
+
+
+@dataclass(frozen=True)
+class Preset:
+    """Un conjunto de valores pensado para un marcador concreto."""
+
+    nombre: str
+    descripcion: str
+    cambios: dict
+
+
+# Los valores salen de README_clasificar_sanger.md, que es la documentación
+# revisada del pipeline; no son invenciones. PENDIENTE: que Victoria los
+# confirme antes de darlos por buenos.
+#
+# Los valores POR DEFECTO (sin preset) son los del ensayo de ingestas: amplicón
+# corto de ~260 pb, por eso largo mínimo 100 y no 300.
+PRESETS = (
+    Preset(
+        "Personalizado",
+        "Los valores que estén cargados; no toca nada.",
+        {},
+    ),
+    Preset(
+        "COI Folmer (~650 pb)",
+        "Amplicón largo: se sube el largo mínimo a 300 pb.",
+        {"largo_min": 300},
+    ),
+    Preset(
+        "16S bacteriano",
+        "Base curada de 16S e identidad 98,7 %, el corte habitual para bacterias.",
+        {"largo_min": 300, "ident_min": 98.7, "db": "16S_ribosomal_RNA"},
+    ),
+    Preset(
+        "ITS hongos",
+        "Base de ITS de hongos de RefSeq.",
+        {"db": "ITS_RefSeq_Fungi"},
+    ),
+)
+
+
+def preset(nombre: str) -> Preset:
+    for p in PRESETS:
+        if p.nombre == nombre:
+            return p
+    raise KeyError(f"no existe el preset {nombre!r}")
+
+
+def aplicar_preset(params: Parametros, nombre: str) -> Parametros:
+    """Devuelve los parámetros con los valores del preset aplicados."""
+    return params.con(**preset(nombre).cambios)
