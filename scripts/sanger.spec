@@ -16,12 +16,13 @@ from PyInstaller.utils.hooks import collect_submodules
 RAIZ = Path(SPECPATH).parent  # noqa: F821  (SPECPATH lo define PyInstaller)
 SRC = RAIZ / "src"
 RECURSOS = SRC / "sanger_ui" / "recursos"
+ICONO = RECURSOS / "icono_sanger_v2.ico"
 
 a = Analysis(  # noqa: F821
     [str(SRC / "sanger_ui" / "app.py")],
     pathex=[str(SRC)],
     binaries=[],
-    # el icono de la ventana viaja adentro del .exe
+    # los recursos (iconos incluidos) viajan adentro del .exe
     datas=[(str(RECURSOS), "sanger_ui/recursos")],
     # Biopython carga varios módulos de forma dinámica: sin esto faltan
     hiddenimports=collect_submodules("Bio"),
@@ -45,5 +46,7 @@ exe = EXE(  # noqa: F821
     upx=False,
     runtime_tmpdir=None,
     console=False,  # es una ventana: sin consola negra atrás
-    icon=str(RECURSOS / "logo_mosquito.ico"),
+    # PyInstaller usa el .ico tal cual y copia sus 7 imágenes como recursos del
+    # .exe: no lo regenera desde una sola (eso arruinaría los tamaños chicos)
+    icon=str(ICONO),
 )

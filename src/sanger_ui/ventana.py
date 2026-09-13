@@ -55,7 +55,25 @@ from sanger_ui.exportar import DialogoExportar
 from sanger_ui.modelo_tabla import COLUMNA_ACCESSION, ModeloMuestras, url_ncbi
 from sanger_ui.worker import Worker
 
-RECURSOS = Path(__file__).resolve().parent / "recursos"
+ICONO = "icono_sanger_v2.ico"
+
+
+def _recursos() -> Path:
+    """
+    La carpeta de recursos, corriendo desde el repo o desde el .exe.
+
+    PyInstaller descomprime lo empaquetado en una carpeta temporal y deja la
+    ruta en `sys._MEIPASS`; ahí los datos quedan en `sanger_ui/recursos`, igual
+    que en el repo. Sin esto, congelado no encuentra el icono y la ventana sale
+    con el de Qt.
+    """
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        return Path(base) / "sanger_ui" / "recursos"
+    return Path(__file__).resolve().parent / "recursos"
+
+
+RECURSOS = _recursos()
 
 BASES = [
     "nt", "core_nt", "mito", "16S_ribosomal_RNA", "ITS_RefSeq_Fungi",
@@ -84,7 +102,15 @@ ETAPAS = {
 
 
 def icono() -> QIcon:
-    ico = RECURSOS / "logo_mosquito.ico"
+    """
+    El icono del programa.
+
+    El `.ico` tiene siete imágenes (16 a 256 px) dibujadas una por una, con
+    distinto encuadre y grosor de trazo según el tamaño. Se usa el archivo tal
+    cual: Qt elige la que corresponde. No se regenera desde el PNG grande, que
+    haría que los tamaños chicos salgan de una reducción automática.
+    """
+    ico = RECURSOS / ICONO
     return QIcon(str(ico)) if ico.exists() else QIcon()
 
 

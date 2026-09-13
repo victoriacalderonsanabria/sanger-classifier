@@ -34,7 +34,7 @@ from sanger_ui.modelo_tabla import (  # noqa: E402
     ModeloMuestras,
     url_ncbi,
 )
-from sanger_ui.ventana import FiltroMuestras, Ventana  # noqa: E402
+from sanger_ui.ventana import ICONO, RECURSOS, FiltroMuestras, Ventana  # noqa: E402
 from sanger_ui.worker import Worker  # noqa: E402
 from tests.sintetico.corrida import armar_corrida  # noqa: E402
 
@@ -119,6 +119,14 @@ def test_el_filtro_por_texto_y_por_grupo(app, muestras):
 def test_el_accession_lleva_al_registro_de_ncbi():
     assert url_ncbi("XX000001.1") == "https://www.ncbi.nlm.nih.gov/nuccore/XX000001.1"
     assert COLUMNAS[COLUMNA_ACCESSION].titulo == "Accession"
+
+
+def test_la_ventana_tiene_el_icono_nuevo(ventana):
+    # que Qt lo haya podido leer: un .ico roto devuelve un QIcon vacío y la
+    # ventana sale con el icono genérico sin avisar nada
+    assert not ventana.windowIcon().isNull()
+    assert ventana.windowIcon().availableSizes(), "Qt no leyó ningún tamaño del .ico"
+    assert (RECURSOS / ICONO).exists() and ICONO == "icono_sanger_v2.ico"
 
 
 # ----------------------------------------------------------------------------
