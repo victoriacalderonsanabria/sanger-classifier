@@ -140,11 +140,11 @@ punto como decimal, sin BOM).
 | `01_QC_lecturas.csv` | Una fila por cromatograma: largo crudo, Q media cruda, bases ambiguas, bases con Q ≥ 20, largo tras recorte estricto y laxo, y `senal` (BUENA / PARCIAL / SIN_SEÑAL). Es la tabla que justifica cada rechazo. |
 | `02_confiables.fasta` | Secuencias del grupo CONFIABLE, orientadas como forward. |
 | `03_dudosas.fasta` | Secuencias del grupo DUDOSA, con el motivo en la descripción, listas para revisar o pegar en BLAST web. |
-| `04_resultados.csv` | **Una fila por muestra**, ordenadas CONFIABLE → DUDOSA → RECHAZADA. Columnas, en orden: identificación de la muestra (grupo, origen `CONSENSO_F+R` / `SOLO_F` / `SOLO_R`, largo, Q media, % Q20, solapamiento, discrepancias y conflictos F/R), resultado de BLAST (mejor hit con especie, identidad, cobertura, e-value y accession, más dos hits alternativos, e `interpretacion`) y al final los textos explicativos: `motivo` (por qué la muestra no llegó a CONFIABLE), `vs_confiables` (ver abajo) y `archivos`. |
+| `04_resultados.csv` | **Una fila por muestra**, ordenadas CONFIABLE → DUDOSA → RECHAZADA. Columnas, en orden: identificación de la muestra (grupo, origen `CONSENSO_F+R` / `SOLO_F` / `SOLO_R`, largo, Q media, % Q20, solapamiento, discrepancias y conflictos F/R), resultado de BLAST (mejor hit con especie, identidad, cobertura, e-value y accession, más dos hits alternativos, e `interpretacion`) y al final los textos explicativos: `motivo` (por qué la muestra no llegó a CONFIABLE), `coincide_con` (ver abajo) y `archivos`. |
 | `05_hits_completos.json` | Títulos completos de GenBank de cada hit. |
 | `blast_xml/` | Respuestas crudas de BLAST (permiten reanudar). |
 
-### La columna `vs_confiables`
+### La columna `coincide_con`
 
 Es una **segunda opinión, independiente de BLAST**, que solo se calcula para las
 DUDOSAS. La idea: si una muestra dudosa es en realidad la misma secuencia que
@@ -184,12 +184,13 @@ es otra cosa (o mezcla), y el BLAST sensible es el que manda.
 * `identidad_baja` — la especie no está en la base, o la secuencia tiene errores. En DUDOSAS es lo esperable.
 * `cobertura_baja` — el hit cubre solo parte de la secuencia: posible quimera o secuencia con un tramo de basura.
 * `humano` — verificar si es esperado o contaminación.
-* `sin_hit` — nada parecido en la base: artefacto de PCR o secuencia de muy baja calidad.
+* `sin_hit` — se consultó y no hay nada parecido en la base: artefacto de PCR o secuencia de muy baja calidad.
+* `ERROR_BLAST` — **no se pudo consultar** (se cayó la red, NCBI no respondió, falló `blastn`). No dice nada sobre la muestra: esa consulta no se hizo. No queda guardada en el caché, así que al relanzar sobre la misma carpeta de resultados se reintenta sola. Aparece contada aparte en `00_resumen.txt`.
 
 ## Cómo usar los tres grupos en un informe
 
 Las CONFIABLES son el resultado. Las DUDOSAS se revisan una por una
-(cromatograma + `vs_confiables` + BLAST) y las que se acepten se reportan en
+(cromatograma + `coincide_con` + BLAST) y las que se acepten se reportan en
 una categoría aparte, "identificación tentativa", indicando largo y calidad.
 Las RECHAZADAS se cuentan como "sin amplificación / sin señal". Nunca se
 mezclan los tres grupos en la misma tabla sin etiqueta.
@@ -200,4 +201,4 @@ mezclan los tres grupos en la misma tabla sin etiqueta.
 * **Q media ≥ 25 y ≥ 80 % de bases Q20**: la media garantiza pocos errores en conjunto; el porcentaje evita que un bloque de bases pésimas se esconda detrás de bases excelentes.
 * **Consenso sobre lecturas crudas**: se alinean F y R completas y se elige base a base la de mayor calidad; recién después se recorta. Recortar antes destruye el solapamiento cuando una lectura arranca mal.
 * **Consenso con prioridad**: si consenso y lectura individual cumplen el estándar, se elige el consenso salvo que sea > 10 % más corto.
-* **Conflictos F/R**: discrepancias donde ambas lecturas tenían buena calidad. Tres o más = posible mezcla de plantillas (picos dobles).
+* **Conflictos F/R**: discrepancias donde ambas lecturas tenían buena calidad. Tres o más = posible mezcla de plantillas (picos dobles). La alerta aparece en `motivo` aunque al final se use una sola lectura: si hay mezcla, conviene mirar el cromatograma igual.

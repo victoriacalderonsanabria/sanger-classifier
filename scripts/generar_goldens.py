@@ -17,14 +17,12 @@ Tres normalizaciones, para que los goldens valgan en Windows y en Linux:
     <SALIDA> (además, así no queda la ruta de nadie en el repo).
   - Los .txt/.fasta/.json se guardan con fin de línea LF: Python escribe CRLF en
     Windows y LF en Linux (los CSV no, esos siempre salen con CRLF).
-  - Los .fasta se pasan a UTF-8: Biopython los escribe con la codificación del
-    sistema (cp1252 en Windows, UTF-8 en Linux), y el motivo de las DUDOSAS
-    lleva acentos ("se usó recorte").
+(Desde la fase 4 los .fasta ya salen en UTF-8 y con LF desde el propio
+programa, así que no hay nada que normalizar ahí.)
 """
 
 import argparse
 import io
-import locale
 import os
 import shutil
 import subprocess
@@ -55,10 +53,9 @@ def normalizar_salida(carpeta: Path, entrada: Path, consola: str) -> None:
     """Deja la carpeta comparable entre sistemas (ver docstring del módulo)."""
     for archivo in carpeta.iterdir():
         if archivo.suffix in TEXTO_LF:
-            datos = archivo.read_bytes().replace(b"\r\n", b"\n")
-            if archivo.suffix == ".fasta":
-                datos = datos.decode(locale.getpreferredencoding(False)).encode("utf-8")
-            archivo.write_bytes(datos)
+            # los .fasta ya salen en UTF-8 y con LF desde la fase 4; el resumen
+            # y el JSON todavía usan el fin de línea del sistema
+            archivo.write_bytes(archivo.read_bytes().replace(b"\r\n", b"\n"))
     shutil.rmtree(carpeta / "blast_xml", ignore_errors=True)
     consola = normalizar_consola(consola, entrada, carpeta)
     (carpeta / "consola.txt").write_bytes(consola.encode("utf-8"))

@@ -131,9 +131,12 @@ class Muestra:
     discrepancias: int | None = None
     conflictos: int | None = None
     motivos: list[str] = field(default_factory=list)
-    vs_confiables: str | None = None
+    coincide_con: str | None = None  # se llamaba "vs_confiables" hasta la fase 4
     hits: list[Hit] = field(default_factory=list)
     interpretacion: str | None = None
+    # Por qué no se pudo consultar BLAST para esta muestra. Distinto de "no
+    # hubo coincidencias": un fallo de red no es un resultado (BUG-1).
+    error_blast: str | None = None
 
     @property
     def motivo(self) -> str:

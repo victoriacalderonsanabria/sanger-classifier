@@ -40,8 +40,20 @@ def resumir_hits(rec, largo_query: int, max_especies: int = 3) -> list[Hit]:
     return hits
 
 
-def interpretar(hits: list[Hit], ident_min: float, cob_min: float) -> str:
-    """El texto de la columna `interpretacion` (ver README_clasificar_sanger.md)."""
+ERROR_BLAST = "ERROR_BLAST"
+
+
+def interpretar(hits: list[Hit] | None, ident_min: float, cob_min: float) -> str:
+    """
+    El texto de la columna `interpretacion` (ver README_clasificar_sanger.md).
+
+    `hits=None` significa que no se pudo consultar (se cayó la red, falló
+    blastn). Eso NO es "sin_hit": una muestra sin consultar no dice nada sobre
+    la muestra, y confundirlas fue el BUG-1. Se informa aparte y se reintenta al
+    relanzar, porque no queda cacheada.
+    """
+    if hits is None:
+        return f"{ERROR_BLAST}: no se pudo consultar; al relanzar se reintenta"
     if not hits:
         return "sin_hit"
     top = hits[0]

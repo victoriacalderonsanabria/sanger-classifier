@@ -1,9 +1,9 @@
-﻿muestra;grupo;origen;largo;q_media;pct_q20;solapamiento;discrepancias;conflictos;especie_1;identidad_1;cobertura_1;evalue_1;accession_1;especie_2;identidad_2;especie_3;identidad_3;interpretacion;motivo;vs_confiables;archivos
+﻿muestra;grupo;origen;largo;q_media;pct_q20;solapamiento;discrepancias;conflictos;especie_1;identidad_1;cobertura_1;evalue_1;accession_1;especie_2;identidad_2;especie_3;identidad_3;interpretacion;motivo;coincide_con;archivos
 S01;CONFIABLE;CONSENSO_F+R;260;39,4;100,0;200;0;0;;;;;;;;;;;;;S01_F.ab1 | S01_R.ab1
 S02;CONFIABLE;CONSENSO_F+R;260;36,8;100,0;139;10;0;;;;;;;;;;;;;S02_F.ab1 | S02_R.ab1
 S03;CONFIABLE;SOLO_F;260;37,4;100,0;;;;;;;;;;;;;;;;S03_F.ab1
 S04;CONFIABLE;SOLO_R;205;37,3;100,0;;;;;;;;;;;;;;;;S04_F.ab1 | S04_R.ab1
-S09;CONFIABLE;SOLO_F;230;37,5;100,0;;;;;;;;;;;;;;;;S09_F.ab1 | S09_R.ab1
+S09;CONFIABLE;SOLO_F;230;37,5;100,0;;;;;;;;;;;;;;6 conflictos F/R con buena calidad: posible mezcla;;S09_F.ab1 | S09_R.ab1
 S12;CONFIABLE;SOLO_?;260;37,9;100,0;;;;;;;;;;;;;;;;S12.ab1
 S13;CONFIABLE;SOLO_R;260;37,5;100,0;;;;;;;;;;;;;;;;S13_F.ab1 | S13_R.ab1
 S14;CONFIABLE;SOLO_R;260;37,6;100,0;;;;;;;;;;;;;;;;S14_R.ab1

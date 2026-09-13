@@ -126,8 +126,13 @@ El comando exacto está en el `README.md`.
   con `cmd /c "... > archivo"` y `PYTHONIOENCODING=utf-8`: el `>` de
   PowerShell 5.1 la reescribe en UTF-16.
 
-Si la paridad falla en las fases 1 a 3, el cambio está mal. En la fase 4 va a
-fallar a propósito: se documenta qué cambió y por qué.
+Si la paridad falla, el cambio está mal, **salvo** que se esté cambiando la
+salida a propósito (como la fase 4): ahí se documenta qué cambió y por qué.
+
+Desde la fase 4 hay dos referencias más, `referencia_fase4` y
+`referencia_fase4_blast_cache`, que son contra las que se compara de ahora en
+adelante. Las dos originales quedan como registro de cómo era la salida del
+script antes de la modularización.
 
 ---
 
@@ -147,7 +152,7 @@ Decisiones tomadas y validadas. No son accidentes.
   está en español). Dentro de un campo nunca hay `;`: las listas internas usan
   ` | `. Existe `--separador coma` para pandas/R.
 - **Orden de columnas**: identificación y BLAST primero; `motivo`,
-  `vs_confiables` y `archivos` al final.
+  `coincide_con` y `archivos` al final.
 
 ---
 
@@ -239,19 +244,34 @@ reescribir historia.
 
 ---
 
-## Bugs conocidos — no arreglar en silencio
+## Bugs conocidos — resueltos en la fase 4
 
-Van todos a la fase 4, con PR propio.
+Quedan acá anotados porque explican por qué el código es como es.
 
-**BUG-1 (impacto científico).** Si los 3 reintentos de un lote de BLAST fallan,
-se marca `resultados[n] = []`, que `interpretar()` traduce a `"sin_hit"`. Un
-fallo de red se ve idéntico a "no matcheó con nada en GenBank".
+**BUG-1 (impacto científico). Corregido.** Si fallaban los 3 reintentos de un
+lote, esas muestras quedaban con lista vacía y se informaban como `sin_hit`: un
+fallo de red se veía idéntico a "no matcheó con nada en GenBank". Ahora un motor
+devuelve `None` cuando no se pudo consultar, se informa como `ERROR_BLAST`, se
+cuenta aparte en el resumen y **no se cachea**, así al relanzar se reintenta.
+Auditoría de la corrida real: las dos muestras con `sin_hit` (MC38 y MC42) lo
+eran de verdad —estaban en lotes donde el resto sí trajo resultados—, así que el
+informe ya emitido no estaba afectado.
 
-**BUG-2.** `NCBIWWW.email = args.email` probablemente no hace nada.
+**BUG-2. No era un bug.** `NCBIWWW.email` sí funciona en la versión instalada de
+Biopython: `qblast` arma el pedido leyendo esa variable del módulo. Se agregó
+además `NCBIWWW.tool`, que NCBI también pide.
 
-**BUG-3.** `write_text(xml_txt)` sin `encoding=` → cp1252 en Windows.
+**BUG-3. Corregido.** El XML crudo se escribe con `encoding="utf-8"`; antes, en
+Windows, se escribía en cp1252 y reventaba con títulos de GenBank fuera de esa
+codificación. Los FASTA tenían el mismo problema y ahora salen siempre en UTF-8
+con fin de línea LF, iguales en cualquier sistema.
 
-**BUG-4.** Reintentos con `sleep(30)` fijo, sin backoff.
+**BUG-4. Corregido.** Los reintentos esperan 30, 60 y 120 segundos, con ±25 % de
+variación para que varias corridas que fallan a la vez no vuelvan todas juntas.
+
+**Pendiente, con decisión tomada:** la alerta de "posible mezcla" ahora aparece
+aunque la secuencia elegida no sea el consenso (antes se perdía). El grupo no
+cambia: lo que cambia es que queda dicho que hay que mirar el cromatograma.
 
 ---
 

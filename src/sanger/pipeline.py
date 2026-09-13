@@ -173,7 +173,7 @@ def ejecutar(
         # se usa la lectura cruda más informativa (más bases Q20), no la recortada
         lec = max(por_muestra[m.nombre], key=lambda x: x.bases_q20)
         d = comparar_con_confiables(lec.seq, lec.qual, refs) if refs else None
-        m.vs_confiables = veredicto_comparacion(d)
+        m.coincide_con = veredicto_comparacion(d)
         progreso(Progreso("comparacion", hechas + 1, len(dudosas)))
 
     # ---- 4. BLAST -----------------------------------------------------------
@@ -204,16 +204,25 @@ def ejecutar(
                 [(m.nombre, m.secuencia, m.largo) for m in lista], mega, progreso, cancelado
             )
             for m in lista:
-                m.hits = hits.get(m.nombre, [])
+                respuesta = hits.get(m.nombre, [])
+                # None = no se pudo consultar; [] = se consultó y no hubo nada
+                m.error_blast = "no se pudo consultar" if respuesta is None else None
+                m.hits = respuesta or []
             for hechas, m in enumerate(lista):
-                m.interpretacion = interpretar(m.hits, params.ident_min, params.cob_min)
+                m.interpretacion = interpretar(
+                    None if m.error_blast else m.hits, params.ident_min, params.cob_min
+                )
                 h = m.hits[0] if m.hits else None
+                if m.error_blast:
+                    quien = "no se pudo consultar"
+                else:
+                    quien = h.especie if h else "sin hit"
                 progreso(
                     Progreso(
                         "blast",
                         hechas + 1,
                         len(lista),
-                        f"  {m.nombre:<12} {h.especie if h else 'sin hit':<28} "
+                        f"  {m.nombre:<12} {quien:<28} "
                         f"{h.identidad if h else '-':>6}%  -> {m.interpretacion}",
                     )
                 )

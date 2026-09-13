@@ -68,12 +68,13 @@ class MotorLocal:
         megablast: bool,
         progreso: Avisar = sin_aviso,
         cancelado: PreguntarCancelado = nunca_cancelado,
-    ) -> dict[str, list[Hit]]:
-        resultados = {}
+    ) -> dict[str, list[Hit] | None]:
+        resultados: dict[str, list[Hit] | None] = {}
         for hechas, (nombre, seq, largo) in enumerate(consultas):
             if cancelado():
                 raise Cancelado("cancelado durante el BLAST local")
             rec = blast_local(nombre, seq, self.carpeta_xml, self.db, megablast, progreso=progreso)
-            resultados[nombre] = resumir_hits(rec, largo)
+            # si blastn falló, no se pudo consultar: no es "sin coincidencias"
+            resultados[nombre] = resumir_hits(rec, largo) if rec is not None else None
             progreso(Progreso("blast", hechas + 1, len(consultas)))
         return resultados

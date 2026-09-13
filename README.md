@@ -30,7 +30,7 @@ a los del script original.
 | 1 | ✅ Partir el script en módulos (`src/sanger/`) + suite sintética | No |
 | 2 | ✅ Pipeline con progreso y cancelación, sin `print` ni `sys.exit` | No |
 | 3 | ✅ Ventana nueva en PySide6 con tabla de resultados | No |
-| 4 | Corrección de errores conocidos del BLAST | **Sí**, documentado |
+| 4 | ✅ Corrección de errores conocidos del BLAST | **Sí**, documentado |
 | 5 | Vista web con Streamlit (opcional) | No |
 
 ## Uso (hoy)
@@ -167,6 +167,11 @@ python scripts\paridad.py C:\Sanger\paridad\referencia_original C:\Sanger\parida
 
 Los informes `01` a `05` tienen que salir idénticos byte a byte; `00_resumen.txt`
 y la consola, idénticos salvo la línea del tiempo de ejecución.
+
+Desde la fase 4 se compara contra `referencia_fase4` (y
+`referencia_fase4_blast_cache`), que ya incluye los cambios de esa fase. Las dos
+referencias originales quedan como registro de cómo era la salida del script
+antes de la modularización.
 
 El camino **con BLAST** se verifica igual, sin consultar a NCBI: se copia a la
 carpeta de salida un caché con respuestas inventadas para las 96 muestras, y el

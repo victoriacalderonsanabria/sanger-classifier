@@ -23,7 +23,10 @@ class MotorFalso:
     """
     asignaciones: nombre de muestra -> nombre de fixture (sin .json).
     Una muestra sin asignación recibe una lista vacía, como una sin hits.
+    Con el valor ERROR simula que no se pudo consultar (BUG-1).
     """
+
+    ERROR = "__no_se_pudo_consultar__"
 
     def __init__(self, carpeta_fixtures: Path, asignaciones: Mapping[str, str]):
         self.carpeta_fixtures = Path(carpeta_fixtures)
@@ -36,15 +39,18 @@ class MotorFalso:
         megablast: bool,
         progreso: Avisar = sin_aviso,
         cancelado: PreguntarCancelado = nunca_cancelado,
-    ) -> dict[str, list[Hit]]:
+    ) -> dict[str, list[Hit] | None]:
         self.llamadas.append((tuple(n for n, _, _ in consultas), megablast))
-        resultado = {}
+        resultado: dict[str, list[Hit] | None] = {}
         for hechas, (nombre, _, _) in enumerate(consultas):
             if cancelado():
                 raise Cancelado("cancelado durante el BLAST")
             fixture = self.asignaciones.get(nombre)
-            resultado[nombre] = (
-                cargar_fixture(self.carpeta_fixtures / f"{fixture}.json") if fixture else []
-            )
+            if fixture == self.ERROR:
+                resultado[nombre] = None
+            elif fixture:
+                resultado[nombre] = cargar_fixture(self.carpeta_fixtures / f"{fixture}.json")
+            else:
+                resultado[nombre] = []
             progreso(Progreso("blast", hechas + 1, len(consultas)))
         return resultado

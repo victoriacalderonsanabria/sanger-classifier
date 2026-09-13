@@ -2,6 +2,7 @@
 
 import json
 import logging
+import random
 import time
 from collections.abc import Sequence
 from io import StringIO
@@ -17,13 +18,32 @@ from sanger.modelos import Avisar, Hit, PreguntarCancelado, Progreso, nunca_canc
 log = logging.getLogger(__name__)
 
 INTENTOS = 3
-ESPERA_ENTRE_INTENTOS = 30  # BUG-4 (fase 4): fija, sin backoff
+# Esperas crecientes entre reintentos: si NCBI está saturado, insistir cada 30
+# segundos no ayuda; darle más aire sí (BUG-4). El jitter evita que varias
+# corridas simultáneas vuelvan a golpear todas juntas.
+ESPERAS = (30, 60, 120)
+JITTER = 0.25  # ±25 % sobre la espera
 
 
-def configurar_email(email: str) -> None:
-    # BUG-2 (se corrige en la fase 4): probablemente no tiene efecto, Biopython
-    # no lee el mail de este atributo. Se conserva tal cual hasta entonces.
+def espera_con_jitter(intento: int, azar=None) -> float:
+    """Cuánto esperar antes del siguiente intento."""
+    # se resuelve acá y no en el valor por defecto, para poder reemplazarlo
+    azar = azar or random.random
+    base = ESPERAS[min(intento, len(ESPERAS) - 1)]
+    return base * (1 + JITTER * (2 * azar() - 1))
+
+
+def configurar_email(email: str, herramienta: str = "sanger-classifier") -> None:
+    """
+    Le dice a NCBI quién consulta.
+
+    BUG-2 revisado en la fase 4: **sí funciona**. En la versión instalada de
+    Biopython, `qblast` arma el pedido con `parameters.update({"email": email,
+    "tool": tool})` leyendo estas variables del módulo. NCBI pide los dos datos
+    para poder avisar antes de bloquear a alguien que consulta de más.
+    """
     NCBIWWW.email = email
+    NCBIWWW.tool = herramienta
 
 
 def blast_remoto_lote(
@@ -37,7 +57,7 @@ def blast_remoto_lote(
     progreso: Avisar = sin_aviso,
     cancelado: PreguntarCancelado = nunca_cancelado,
     etiqueta: str = "",
-) -> dict[str, list[Hit]]:
+) -> dict[str, list[Hit] | None]:
     """
     Manda hasta `tamano_lote` secuencias en un solo envío.
 
@@ -51,7 +71,7 @@ def blast_remoto_lote(
     las DUDOSAS pisaba el `lote_1.xml` que había dejado la de las CONFIABLES,
     porque la numeración de lotes arranca de nuevo en cada llamada.
     """
-    resultados: dict[str, list[Hit]] = {}
+    resultados: dict[str, list[Hit] | None] = {}
     pendientes = []
     for nombre, seq, largo in items:
         cache = carpeta_cache / f"{nombre}.hits.json"
@@ -106,18 +126,22 @@ def blast_remoto_lote(
         if entrez_query:
             kwargs["entrez_query"] = entrez_query
         registros = None
+        ultimo_error: Exception | None = None
         for intento in range(INTENTOS):
             try:
                 h = NCBIWWW.qblast(**kwargs)
                 xml_txt = h.read()
                 h.close()
                 nombre_xml = f"lote_{etiqueta}_{n_lote}.xml" if etiqueta else f"lote_{n_lote}.xml"
-                # BUG-3 (fase 4): sin encoding=, en Windows usa cp1252
-                (carpeta_cache / nombre_xml).write_text(xml_txt)
+                # BUG-3 corregido: sin encoding=, en Windows se escribía en
+                # cp1252 y reventaba con caracteres que no existen ahí (nombres
+                # de GenBank con tildes o letras de otros alfabetos)
+                (carpeta_cache / nombre_xml).write_text(xml_txt, encoding="utf-8")
                 registros = list(NCBIXML.parse(StringIO(xml_txt)))
                 break
             except Exception as e:
                 log.warning("BLAST remoto, intento %d de %d falló: %s", intento + 1, INTENTOS, e)
+                ultimo_error = e
                 progreso(
                     Progreso(
                         "blast",
@@ -127,7 +151,7 @@ def blast_remoto_lote(
                         detalle=f"{cual_lote} · reintento {intento + 1} de {INTENTOS}",
                     )
                 )
-                time.sleep(ESPERA_ENTRE_INTENTOS)
+                time.sleep(espera_con_jitter(intento))
         # el tiempo se mide en el mismo punto que el original, para que el
         # número impreso sea el mismo
         segundos = time.time() - t0
@@ -142,11 +166,21 @@ def blast_remoto_lote(
             )
         )
         if registros is None:
-            # BUG-1 (fase 4): un fallo de red queda igual que "sin hits"
+            # BUG-1 corregido: no se pudo consultar, y eso NO es "no hubo
+            # coincidencias". Queda como None (error) y sin cachear, así al
+            # relanzar la corrida se reintenta.
+            log.error(
+                "lote %d: sin respuesta tras %d intentos (%s)", n_lote, INTENTOS, ultimo_error
+            )
             for n, _, _ in lote:
-                resultados[n] = []
+                resultados[n] = None
             progreso(
-                Progreso("blast", len(resultados), len(items), detalle=f"{cual_lote} · sin hits")
+                Progreso(
+                    "blast",
+                    len(resultados),
+                    len(items),
+                    detalle=f"{cual_lote} · no se pudo consultar",
+                )
             )
             continue
         vistos = set()
@@ -161,7 +195,10 @@ def blast_remoto_lote(
             )
         for n, _, _ in lote:
             if n not in vistos:
-                resultados[n] = []
+                # la respuesta llegó pero sin esta consulta: tampoco es "no hubo
+                # coincidencias", es que no se sabe qué pasó con ella
+                log.error("la respuesta de NCBI no trajo la consulta %s", n)
+                resultados[n] = None
         # aviso mudo (no se imprime): mueve la barra al cerrar el lote
         progreso(Progreso("blast", len(resultados), len(items), detalle=f"{cual_lote} · resuelto"))
     return resultados
@@ -182,7 +219,7 @@ class MotorRemoto:
         megablast: bool,
         progreso: Avisar = sin_aviso,
         cancelado: PreguntarCancelado = nunca_cancelado,
-    ) -> dict[str, list[Hit]]:
+    ) -> dict[str, list[Hit] | None]:
         return blast_remoto_lote(
             consultas,
             self.carpeta_cache,

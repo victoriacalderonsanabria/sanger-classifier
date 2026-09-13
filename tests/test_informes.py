@@ -44,7 +44,7 @@ def _muestras():
         Muestra("Z9", ("Z9_F.ab1",), motivos=["ninguna lectura con señal utilizable"]),
         Muestra(
             "B2", ("B2_F.ab1",), Grupo.DUDOSA, "SOLO_F", "ACGT", 4, 20.1, 50.0,
-            motivos=["uno", "dos"], vs_confiables="sin_coincidencia_util", hits=[hit],
+            motivos=["uno", "dos"], coincide_con="sin_coincidencia_util", hits=[hit],
         ),
         Muestra(
             "A1", ("A1_F.ab1", "A1_R.ab1"), Grupo.CONFIABLE, "CONSENSO_F+R", "ACGT", 4, 38.2,
@@ -60,14 +60,34 @@ def test_filas_resultados_orden_por_grupo_y_celdas_vacias():
     a1, b2, z9 = filas
     assert (a1["solapamiento"], a1["accession_1"], a1["especie_2"]) == (180, "XX1", "Bos taurus")
     assert (b2["solapamiento"], b2["motivo"], b2["especie_2"]) == ("", "uno | dos", "")
-    assert (z9["q_media"], z9["largo"], z9["vs_confiables"]) == ("", 0, "")
+    assert (z9["q_media"], z9["largo"], z9["coincide_con"]) == ("", 0, "")
     assert a1["archivos"] == "A1_F.ab1 | A1_R.ab1"
 
 
 def test_fasta_de_dudosas_lleva_el_motivo(tmp_path):
     ruta = tmp_path / "d.fasta"
     escribir_fasta(ruta, [_muestras()[1]], revisar=True)
-    assert ruta.read_text().splitlines() == [">B2 SOLO_F len=4 REVISAR: uno | dos", "ACGT"]
+    assert ruta.read_text(encoding="utf-8").splitlines() == [
+        ">B2 SOLO_F len=4 REVISAR: uno | dos",
+        "ACGT",
+    ]
+
+
+def test_el_fasta_sale_en_utf8_y_con_fin_de_linea_lf(tmp_path):
+    """
+    Antes se escribía con la codificación del sistema: en Windows el motivo de
+    las DUDOSAS ("se usó recorte") quedaba en cp1252 y se veía roto en cualquier
+    herramienta que espere UTF-8. Además el archivo cambiaba según la máquina
+    donde se corriera (fase 4).
+    """
+    muestra = _muestras()[1]
+    muestra.motivos = ["con recorte Q20 quedaban 80 pb - se usó recorte Q15"]
+    ruta = tmp_path / "d.fasta"
+    escribir_fasta(ruta, [muestra], revisar=True)
+
+    crudo = ruta.read_bytes()
+    assert "se usó recorte".encode() in crudo  # UTF-8, en cualquier sistema
+    assert b"\r\n" not in crudo  # LF, en cualquier sistema
 
 
 def test_hits_json_solo_muestras_con_hits(tmp_path):

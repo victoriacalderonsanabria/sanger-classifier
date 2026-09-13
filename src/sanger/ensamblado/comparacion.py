@@ -72,7 +72,7 @@ def comparar_con_confiables(
 
 def veredicto_comparacion(d: Comparacion | None, min_bases: int = 40) -> str:
     """
-    El texto de la columna `vs_confiables`.
+    El texto de la columna `coincide_con`.
 
     Con menos de `min_bases` bases buenas la comparación no significa nada y no
     se informa: un 100 % sobre 15 bases puede ser casualidad.

@@ -127,7 +127,12 @@ def elegir_secuencia(cands: Sequence[Candidato], params: Parametros) -> tuple[El
     return elegido, largo_estricto_max
 
 
-def motivos(elegida: Elegida, largo_estricto_max: int, params: Parametros) -> list[str]:
+def motivos(
+    elegida: Elegida,
+    largo_estricto_max: int,
+    params: Parametros,
+    conflictos_consenso: int = 0,
+) -> list[str]:
     """Por qué una muestra no llegó a CONFIABLE, y alertas que aplican a cualquiera."""
     met, lista = elegida.met, []
     if elegida.grupo == Grupo.DUDOSA:
@@ -143,7 +148,11 @@ def motivos(elegida: Elegida, largo_estricto_max: int, params: Parametros) -> li
             lista.append(f"{met.pct_q20}% bases Q20 < {params.pct_q20_min}%")
         if met.n_amb:
             lista.append(f"{met.n_amb} bases ambiguas")
-    conflictos = elegida.extra.get("conflictos", 0)
+    # La alerta vale aunque la secuencia elegida no sea el consenso. Antes, si
+    # los conflictos bajaban la calidad del consenso y ganaba una lectura sola,
+    # la muestra salía CONFIABLE sin ninguna marca: la señal de posible mezcla
+    # se perdía justo cuando más importaba (fase 4).
+    conflictos = max(elegida.extra.get("conflictos", 0), conflictos_consenso)
     if conflictos >= CONFLICTOS_MEZCLA:
         lista.append(f"{conflictos} conflictos F/R con buena calidad: posible mezcla")
     return lista
@@ -157,7 +166,11 @@ def asignar_grupo(nombre: str, lecturas: Sequence[Lectura], params: Parametros) 
         m.motivos = ["ninguna lectura con señal utilizable"]
         return m
 
-    elegida, largo_estricto_max = elegir_secuencia(candidatos(con_senal, params.min_solap), params)
+    cands = candidatos(con_senal, params.min_solap)
+    consenso = next((c for c in cands if c.origen == ORIGEN_CONSENSO), None)
+    conflictos_consenso = consenso.extra.get("conflictos", 0) if consenso else 0
+
+    elegida, largo_estricto_max = elegir_secuencia(cands, params)
     if elegida is None:
         m.motivos = [
             f"hay señal pero ni con recorte Q{params.umbral_q_laxo} se llega a "
@@ -174,5 +187,5 @@ def asignar_grupo(nombre: str, lecturas: Sequence[Lectura], params: Parametros) 
     m.solapamiento = elegida.extra.get("solapamiento")
     m.discrepancias = elegida.extra.get("discrepancias")
     m.conflictos = elegida.extra.get("conflictos")
-    m.motivos = motivos(elegida, largo_estricto_max, params)
+    m.motivos = motivos(elegida, largo_estricto_max, params, conflictos_consenso)
     return m
