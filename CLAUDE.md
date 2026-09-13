@@ -189,9 +189,13 @@ de verdad sigue siendo una prueba manual.
 **Perfiles / presets** (`config.py`): confirmados por Victoria el 13/09/2026,
 con un encuadre que no se negocia: **son sugerencias de configuración, no
 criterios de identificación taxonómica**. El 98,7 % del 16S es un valor sugerido
-y de uso frecuente, no un umbral que defina especie. El aviso está siempre a la
-vista en la ventana y cada perfil explica de dónde sale su valor; hay tests que
-lo verifican.
+y de uso frecuente, no un umbral que defina especie. Ese aviso general **está
+siempre a la vista** en la ventana; hay un test que lo verifica.
+
+La explicación de cada perfil, en cambio, **no queda fija**: ocupaba media
+pestaña (Victoria, 13/09/2026). Está en el globo del combo y en un botón `?`
+que la deja visible mientras se la lee. La distinción importa: el aviso
+científico es permanente, el texto de ayuda es a pedido.
 
 El perfil principal es **"Default"** (así, a secas): el programa se usa sobre
 todo para Sanger de virus e identificación de ingestas de mosquitos, y esos son

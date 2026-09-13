@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QTableView,
     QTabWidget,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -172,18 +173,39 @@ class Ventana(QMainWindow):
 
         grupo_blast = QGroupBox("Búsqueda en GenBank")
         form = QFormLayout(grupo_blast)
+        fila_preset = QWidget()
+        caja_preset = QHBoxLayout(fila_preset)
+        caja_preset.setContentsMargins(0, 0, 0, 0)
         self.v_preset = QComboBox()
         self.v_preset.addItems([p.nombre for p in PRESETS])
         # por índice y no por texto: al marcar "(modificado)" cambia el texto,
         # y buscar el preset por ese texto no encontraría nada
         self.v_preset.currentIndexChanged.connect(self._elegir_preset)
-        form.addRow("Perfil:", self.v_preset)
-        # Que quede a la vista que son sugerencias: un umbral de identidad no
-        # define una especie, y el combo no debería dar a entender lo contrario.
+        # La explicación de cada perfil es larga y no se necesita todo el
+        # tiempo: pasando el mouse por el combo aparece, y este botón la deja
+        # fija para leerla con calma. Permanente ocupaba media pestaña.
+        self.b_info_preset = QToolButton()
+        self.b_info_preset.setText("?")
+        self.b_info_preset.setCheckable(True)
+        self.b_info_preset.setToolTip("Qué es este perfil")
+        self.b_info_preset.toggled.connect(self._mostrar_detalle_preset)
+        caja_preset.addWidget(self.v_preset, 1)
+        caja_preset.addWidget(self.b_info_preset)
+        form.addRow("Perfil:", fila_preset)
+
+        # Esto sí queda siempre a la vista, y es una línea: un umbral de
+        # identidad no define una especie y el combo no puede dar a entender
+        # que sí.
         self.etiqueta_preset = QLabel(AVISO_PRESETS)
         self.etiqueta_preset.setWordWrap(True)
         self.etiqueta_preset.setStyleSheet("color: gray;")
         form.addRow("", self.etiqueta_preset)
+
+        self.detalle_preset = QLabel("")
+        self.detalle_preset.setWordWrap(True)
+        self.detalle_preset.setStyleSheet("color: gray;")
+        self.detalle_preset.setVisible(False)
+        form.addRow("", self.detalle_preset)
 
         # Cada equipo que use el programa puede tener criterios distintos a los
         # del laboratorio. En vez de pedirle que los cargue a mano en cada
@@ -415,6 +437,10 @@ class Ventana(QMainWindow):
         """El nombre del preset seleccionado, sin el sufijo de modificado."""
         return PRESETS[max(self.v_preset.currentIndex(), 0)].nombre
 
+    def _mostrar_detalle_preset(self, visible: bool) -> None:
+        """Muestra u oculta la explicación del perfil (el botón '?')."""
+        self.detalle_preset.setVisible(visible)
+
     def valores_del_perfil(self, nombre: str) -> dict:
         """Los valores de ese perfil, sobre el Default guardado si hay uno."""
         return valores_de_preset(nombre, self.default_propio)
@@ -429,8 +455,10 @@ class Ventana(QMainWindow):
                 "los valores de partida son los que guardó este equipo, no los que "
                 "trae el programa."
             )
-        self.etiqueta_preset.setText(f"{descripcion}\n\n{AVISO_PRESETS}")
+        self.detalle_preset.setText(descripcion)
+        # también en el globo del combo: es donde uno lo busca primero
         self.v_preset.setToolTip(descripcion)
+        self.b_info_preset.setToolTip(descripcion)
         valores = self.valores_del_perfil(elegido.nombre)
         self.v_largo.setValue(valores["largo_min"])
         self.v_largo_laxo.setValue(valores["largo_min_laxo"])

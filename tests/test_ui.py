@@ -185,16 +185,32 @@ def test_el_preset_carga_los_umbrales(ventana):
 def test_el_perfil_dice_que_es_una_sugerencia(ventana):
     """
     Un umbral de identidad no define una especie. El combo no puede dar a
-    entender que sí, así que el aviso está siempre a la vista y cada perfil
-    explica de dónde sale su valor (decisión de Victoria, 13/09/2026).
+    entender que sí, así que el aviso general está siempre a la vista
+    (decisión de Victoria, 13/09/2026).
     """
     assert "no criterios de identificación taxonómica" in ventana.etiqueta_preset.text()
-
     ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
-    texto = ventana.etiqueta_preset.text()
+    assert AVISO_PRESETS in ventana.etiqueta_preset.text()  # no se pierde al elegir uno
+
+
+def test_la_explicacion_del_perfil_esta_a_mano_pero_no_ocupa_lugar(ventana):
+    """
+    La explicación de cada perfil no está fija: ocupaba media pestaña. Se ve
+    pasando el mouse por el combo, y el botón '?' la deja fija para leerla.
+    """
+    # isVisibleTo y no isVisible: la ventana de los tests nunca se muestra
+    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
+    assert not ventana.detalle_preset.isVisibleTo(ventana)  # no ocupa espacio
+
+    texto = ventana.v_preset.toolTip()  # el globo la trae igual
     assert "identidad sugerida de 98,7 %" in texto
     assert "NO es un umbral que defina especie" in texto
-    assert AVISO_PRESETS in texto  # el aviso general no se pierde al elegir uno
+
+    ventana.b_info_preset.setChecked(True)
+    assert ventana.detalle_preset.isVisibleTo(ventana)
+    assert ventana.detalle_preset.text() == texto
+    ventana.b_info_preset.setChecked(False)
+    assert not ventana.detalle_preset.isVisibleTo(ventana)
 
 
 def test_el_perfil_principal_es_el_del_laboratorio(ventana):
@@ -270,7 +286,7 @@ def test_guardar_el_default_propio_y_volver_al_del_programa(ventana):
     assert ventana.v_preset.currentText() == "Default"
     assert ventana.valores_cargados()["largo_min"] == 250
     assert "Default de esta computadora" in ventana.estado.text()
-    assert "Default propio" in ventana.etiqueta_preset.text()  # queda dicho en pantalla
+    assert "Default propio" in ventana.detalle_preset.text()  # queda dicho, en el '?'
 
     # y los otros perfiles pasan a armarse sobre eso
     ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "ITS hongos"))
@@ -279,7 +295,7 @@ def test_guardar_el_default_propio_y_volver_al_del_programa(ventana):
     ventana.restaurar_default_programa()
     assert ventana.v_preset.currentText() == "Default"
     assert ventana.valores_cargados()["largo_min"] == 100
-    assert "Default propio" not in ventana.etiqueta_preset.text()
+    assert "Default propio" not in ventana.detalle_preset.text()
 
 
 def test_el_default_propio_sobrevive_al_cierre(app, tmp_path, monkeypatch):

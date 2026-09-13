@@ -49,6 +49,10 @@ abrir). La ventana tiene tres pestañas.
    ajustando a mano, y si algún valor deja de ser el del perfil, el combo lo
    avisa con `(modificado)`.
 
+   Para saber qué es cada perfil y de dónde salen sus valores: pasá el mouse
+   por encima del combo, o apretá el botón **?** que tiene al lado para dejar
+   la explicación fija mientras la leés.
+
    > El 98,7 % de identidad del perfil de 16S es un valor **sugerido**, de uso
    > frecuente en la literatura, **no un umbral que defina una especie**: eso
    > depende del gen, del grupo y del contexto del ensayo.
