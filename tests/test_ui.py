@@ -9,6 +9,7 @@ que la tabla muestre lo que tiene que mostrar y que el hilo de trabajo avise y
 se pueda cancelar. Lo que sigue siendo manual es mirar la ventana de verdad.
 """
 
+import csv
 import os
 
 import pytest
@@ -23,7 +24,7 @@ import paridad  # noqa: E402
 from sanger.cli import main as cli_main  # noqa: E402
 from sanger.config import PRESETS, Parametros  # noqa: E402
 from sanger.errores import Cancelado  # noqa: E402
-from sanger.io.informes import ARCHIVOS, TODOS  # noqa: E402
+from sanger.io.informes import ARCHIVO_FILTRADO, ARCHIVOS, TODOS  # noqa: E402
 from sanger.modelos import Grupo, Hit, Muestra, Progreso, Resultado  # noqa: E402
 from sanger_ui import cache_local, preferencias  # noqa: E402
 from sanger_ui.exportar import DialogoExportar  # noqa: E402
@@ -420,7 +421,7 @@ def test_la_ventana_produce_lo_mismo_que_la_linea_de_comandos(app, tmp_path, mon
     v.close()
 
 
-def _exportar_a(monkeypatch, ventana, destino, cuales=None):
+def _exportar_a(monkeypatch, ventana, destino, cuales=None, filtrar=False):
     """Aprieta 'Exportar…' respondiendo el diálogo sin abrirlo."""
     from PySide6.QtWidgets import QDialog
 
@@ -438,6 +439,9 @@ def _exportar_a(monkeypatch, ventana, destino, cuales=None):
 
         def elegidos(self):
             return list(cuales) if cuales else list(TODOS)
+
+        def filtrar_resultados(self):
+            return filtrar
 
     monkeypatch.setattr("sanger_ui.ventana.DialogoExportar", DialogoFalso)
     ventana.exportar()
@@ -464,6 +468,57 @@ def test_exportar_escribe_lo_elegido_y_lo_recuerda(ventana, muestras, tmp_path, 
     assert ventana.ultima_exportacion == str(destino)
     assert ventana.preferencias_actuales()["exportacion"] == str(destino)
     assert "2 archivos exportados" in ventana.etiqueta_exportacion.text()
+
+
+def test_las_filas_visibles_son_las_que_se_ven_y_en_ese_orden(ventana, muestras):
+    ventana.en_terminado(Resultado([], muestras, 1.0, 0.0))
+    assert [m.nombre for m in ventana.muestras_visibles()] == ["A1", "B2", "C3"]
+
+    ventana.v_filtro.setText("dudosa")
+    assert [m.nombre for m in ventana.muestras_visibles()] == ["B2"]
+
+    ventana.v_filtro.setText("")
+    ventana.tabla.sortByColumn(0, Qt.SortOrder.DescendingOrder)
+    assert [m.nombre for m in ventana.muestras_visibles()] == ["C3", "B2", "A1"]
+
+
+def test_exportar_solo_lo_visible_deja_los_demas_archivos_enteros(
+    ventana, muestras, tmp_path, monkeypatch
+):
+    ventana.params = Parametros(entrada=tmp_path, salida=None, no_blast=True)
+    ventana.en_terminado(Resultado([], muestras, 1.0, 0.0))
+    ventana.v_filtro.setText("dudosa")  # queda una sola fila a la vista
+
+    destino = tmp_path / "exportado"
+    _exportar_a(monkeypatch, ventana, destino, filtrar=True)
+
+    # 04 sale filtrado y con otro nombre; el 04 completo no se escribe
+    assert (destino / ARCHIVO_FILTRADO).exists()
+    assert not (destino / ARCHIVOS["04"]).exists()
+    with open(destino / ARCHIVO_FILTRADO, encoding="utf-8-sig", newline="") as fh:
+        filas = list(csv.DictReader(fh, delimiter=";"))
+    assert [f["muestra"] for f in filas] == ["B2"]
+
+    # el resumen y el QC siguen siendo de la corrida entera
+    assert "Muestras: 3" in (destino / ARCHIVOS["00"]).read_text(encoding="utf-8")
+
+
+def test_sin_filtro_no_se_puede_pedir_solo_lo_visible(app, tmp_path):
+    dialogo = DialogoExportar(destino_sugerido=str(tmp_path), visibles=16, total=16)
+    assert not dialogo.solo_visibles.isEnabled()
+    assert not dialogo.filtrar_resultados()
+    dialogo.close()
+
+
+def test_con_filtro_el_dialogo_ofrece_exportar_lo_visible(app, tmp_path):
+    dialogo = DialogoExportar(destino_sugerido=str(tmp_path), visibles=4, total=16)
+    assert dialogo.solo_visibles.isEnabled()
+    assert "4 filas visibles" in dialogo.solo_visibles.text()
+    assert "de 16" in dialogo.solo_visibles.text()
+    assert not dialogo.filtrar_resultados()  # viene desmarcado
+    dialogo.solo_visibles.setChecked(True)
+    assert dialogo.filtrar_resultados()
+    dialogo.close()
 
 
 def test_avisa_antes_de_perder_resultados_sin_exportar(ventana, muestras, tmp_path, monkeypatch):

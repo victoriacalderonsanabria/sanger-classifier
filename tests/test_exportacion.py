@@ -6,6 +6,7 @@ exporta la ventana tienen que ser **byte a byte** los mismos que escribe la
 línea de comandos. Por eso los dos caminos usan el mismo escritor.
 """
 
+import csv
 import filecmp
 import io
 from contextlib import redirect_stdout
@@ -14,7 +15,13 @@ import pytest
 
 from sanger.cli import main as cli_main
 from sanger.config import Parametros
-from sanger.io.informes import ARCHIVOS, TODOS, escribir_informes
+from sanger.io.informes import (
+    ARCHIVO_FILTRADO,
+    ARCHIVOS,
+    TODOS,
+    escribir_informes,
+    escribir_resultados_filtrados,
+)
 from sanger.modelos import Grupo
 from sanger.pipeline import ejecutar
 from tests.sintetico.corrida import armar_corrida, preparar_cache_blast
@@ -149,6 +156,41 @@ def test_el_formato_internacional_tambien_se_respeta(entrada, tmp_path):
     crudo = (destino / "04_resultados.csv").read_bytes()
     assert not crudo.startswith(b"\xef\xbb\xbf")  # sin BOM
     assert b";" not in crudo.split(b"\r\n")[0]
+
+
+# ----------------------------------------------------------------------------
+# Exportar solo las filas visibles (punto 3.7)
+# ----------------------------------------------------------------------------
+
+
+def test_el_filtrado_respeta_el_orden_que_se_le_da(entrada, tmp_path):
+    resultado = ejecutar(Parametros(entrada=entrada, salida=None, no_blast=True))
+    elegidas = [m for m in resultado.muestras if m.grupo == Grupo.DUDOSA][::-1]
+    ruta = escribir_resultados_filtrados(elegidas, tmp_path / "filtrado")
+
+    assert ruta.name == ARCHIVO_FILTRADO
+    with open(ruta, encoding="utf-8-sig", newline="") as fh:
+        filas = list(csv.DictReader(fh, delimiter=";"))
+    assert [f["muestra"] for f in filas] == [m.nombre for m in elegidas]
+    assert {f["grupo"] for f in filas} == {"DUDOSA"}
+
+
+def test_el_filtrado_tiene_el_mismo_formato_que_el_completo(entrada, tmp_path):
+    # con todas las muestras y en el mismo orden, tiene que dar idéntico:
+    # lo único que cambia es qué filas entran, no cómo se escriben
+    resultado = ejecutar(Parametros(entrada=entrada, salida=None, no_blast=True))
+    completo = tmp_path / "completo"
+    escribir_informes(resultado, completo, cuales=("04",))
+    orden = {Grupo.CONFIABLE: 0, Grupo.DUDOSA: 1, Grupo.RECHAZADA: 2}
+    ordenadas = sorted(resultado.muestras, key=lambda m: (orden[m.grupo], m.nombre))
+    filtrado = escribir_resultados_filtrados(ordenadas, tmp_path / "filtrado")
+    assert filtrado.read_bytes() == (completo / ARCHIVOS["04"]).read_bytes()
+
+
+def test_el_nombre_del_filtrado_es_distinto_a_proposito():
+    # un archivo con una parte de las muestras no puede llamarse igual que el
+    # completo: alguien podría leerlo como si fuera toda la corrida
+    assert ARCHIVO_FILTRADO != ARCHIVOS["04"]
 
 
 def test_un_informe_que_no_existe(entrada, tmp_path):
