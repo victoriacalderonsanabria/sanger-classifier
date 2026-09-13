@@ -148,14 +148,13 @@ def test_remoto_con_cache_completo_no_consulta_ncbi(tmp_path, fixtures_blast, mo
     assert res["M1"] == cargar_fixture(fixtures_blast / "hit_claro.json")
 
 
-def test_remoto_error_de_motor_hoy_se_ve_como_sin_hit_bug1(tmp_path, monkeypatch):
+def test_un_fallo_de_red_no_es_sin_hit_bug1(tmp_path, monkeypatch):
     """
-    BUG-1, comportamiento ACTUAL (se corrige en la fase 4, con el OK de Victoria).
+    BUG-1 corregido (fase 4).
 
-    Si NCBI falla los 3 intentos, las muestras del lote quedan con lista vacía y
-    `interpretar` lo informa como "sin_hit": un fallo de red se ve igual que "no
-    matcheó con nada en GenBank". Este test fija el comportamiento de hoy; en la
-    fase 4 pasa a esperar un estado ERROR_BLAST distinguible.
+    Si NCBI falla los 3 intentos, esas muestras quedan como None: "no se pudo
+    consultar", que no es lo mismo que "no matcheó con nada en GenBank".
+    Tampoco se cachean, así al relanzar la corrida se reintentan.
     """
     intentos = []
 
@@ -170,10 +169,62 @@ def test_remoto_error_de_motor_hoy_se_ve_como_sin_hit_bug1(tmp_path, monkeypatch
         [("M1", "ACGT", 4), ("M2", "ACGT", 4)], tmp_path, progreso=avisos.append
     )
     assert len(intentos) == 3
-    assert res == {"M1": [], "M2": []}
-    assert interpretar(res["M1"], 97.0, 80.0) == "sin_hit"
-    assert not (tmp_path / "M1.hits.json").exists()  # al menos no queda cacheado
+    assert res == {"M1": None, "M2": None}
+    assert interpretar(res["M1"], 97.0, 80.0).startswith("ERROR_BLAST")
+    assert interpretar([], 97.0, 80.0) == "sin_hit"  # y siguen siendo distintos
+    assert not (tmp_path / "M1.hits.json").exists()  # sin cachear: se reintenta
     assert any("intento 3 falló: NCBI no responde" in p.mensaje for p in avisos)
+
+
+def test_si_la_respuesta_no_trae_una_consulta_tampoco_es_sin_hit(tmp_path, monkeypatch):
+    # llegó respuesta, pero sin esa muestra: no se sabe qué pasó con ella
+    _sin_red(monkeypatch, respuesta="<BlastOutput></BlastOutput>")
+    monkeypatch.setattr(remoto.NCBIXML, "parse", lambda handle: [])
+    res = remoto.blast_remoto_lote([("M1", "ACGT", 4)], tmp_path)
+    assert res == {"M1": None}
+
+
+def test_los_reintentos_esperan_cada_vez_mas_bug4(tmp_path, monkeypatch):
+    # BUG-4: antes esperaba 30 s fijos; con NCBI saturado eso es insistir igual
+    esperas = []
+    _sin_red(monkeypatch)
+    monkeypatch.setattr(remoto.time, "sleep", esperas.append)
+    monkeypatch.setattr(remoto.random, "random", lambda: 0.5)  # sin jitter
+    remoto.blast_remoto_lote([("M1", "ACGT", 4)], tmp_path)
+    assert esperas == [30, 60, 120]
+
+
+def test_el_jitter_reparte_las_esperas():
+    # varias corridas que fallan a la vez no vuelven a golpear todas juntas
+    assert remoto.espera_con_jitter(0, azar=lambda: 0.0) == 30 * 0.75
+    assert remoto.espera_con_jitter(0, azar=lambda: 1.0) == 30 * 1.25
+    assert remoto.espera_con_jitter(5, azar=lambda: 0.5) == 120  # no crece más allá
+
+
+def test_el_xml_crudo_se_guarda_en_utf8_bug3(tmp_path, monkeypatch):
+    # BUG-3: sin encoding= se escribía en cp1252 y reventaba con títulos de
+    # GenBank que tienen caracteres fuera de esa codificación
+    xml = "<BlastOutput><Hit_def>Müller · 日本</Hit_def></BlastOutput>"
+    _sin_red(monkeypatch, respuesta=xml)
+    monkeypatch.setattr(remoto.NCBIXML, "parse", lambda handle: [])
+    remoto.blast_remoto_lote([("M1", "ACGT", 4)], tmp_path, etiqueta="megablast")
+    guardado = tmp_path / "lote_megablast_1.xml"
+    assert guardado.read_text(encoding="utf-8") == xml
+
+
+def test_el_mail_y_la_herramienta_llegan_a_ncbi_bug2(monkeypatch):
+    """
+    BUG-2 revisado: **no era un bug** en la versión instalada de Biopython.
+
+    `qblast` arma el pedido con `parameters.update({"email": email, "tool":
+    tool})` leyendo estas variables del módulo, así que asignarlas alcanza.
+    NCBI pide los dos datos para avisar antes de bloquear a alguien.
+    """
+    monkeypatch.setattr(remoto.NCBIWWW, "email", None, raising=False)
+    monkeypatch.setattr(remoto.NCBIWWW, "tool", "biopython", raising=False)
+    remoto.configurar_email("alguien@ejemplo.com")
+    assert remoto.NCBIWWW.email == "alguien@ejemplo.com"
+    assert remoto.NCBIWWW.tool == "sanger-classifier"
 
 
 def test_remoto_manda_en_lotes_del_tamano_pedido(tmp_path, monkeypatch):
@@ -217,7 +268,8 @@ def test_local_sin_blastn_instalado_levanta_blast_error(tmp_path, monkeypatch):
         local.blast_local("M1", "ACGT", tmp_path, "base")
 
 
-def test_local_si_blastn_falla_la_muestra_queda_sin_hits(tmp_path, monkeypatch):
+def test_local_si_blastn_falla_la_muestra_queda_como_no_consultada(tmp_path, monkeypatch):
+    # mismo criterio que con NCBI: que blastn falle no dice nada de la muestra
     def falla(cmd, **k):
         raise subprocess.CalledProcessError(2, cmd, stderr="BLAST Database error\n")
 
@@ -226,7 +278,8 @@ def test_local_si_blastn_falla_la_muestra_queda_sin_hits(tmp_path, monkeypatch):
     res = local.MotorLocal(tmp_path, "base").buscar(
         [("M1", "ACGT", 4)], megablast=True, progreso=avisos.append
     )
-    assert res == {"M1": []}
+    assert res == {"M1": None}
+    assert interpretar(res["M1"], 97.0, 80.0).startswith("ERROR_BLAST")
     assert any("[BLAST local] falló para M1: BLAST Database error" in p.mensaje for p in avisos)
 
 

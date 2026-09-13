@@ -23,9 +23,14 @@ class MotorBlast(Protocol):
         megablast: bool,
         progreso: Avisar = ...,
         cancelado: PreguntarCancelado = ...,
-    ) -> dict[str, list[Hit]]:
+    ) -> dict[str, list[Hit] | None]:
         """
         Devuelve, por nombre de muestra, hasta tres hits de especies distintas.
+
+        Una lista vacía significa "se consultó y no hubo coincidencias".
+        **None significa que no se pudo consultar** (se cayó la red, falló
+        blastn): eso no es un resultado y no se confunde con lo anterior
+        (BUG-1). Tampoco se guarda en el caché, así al relanzar se reintenta.
 
         megablast=True es el algoritmo rápido, para secuencias buenas (CONFIABLES);
         False es blastn, más sensible, para secuencias con errores (DUDOSAS).

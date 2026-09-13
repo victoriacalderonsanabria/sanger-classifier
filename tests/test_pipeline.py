@@ -7,6 +7,8 @@ enterarse de algo, no podía cancelar, y un sys.exit del núcleo le llegaba como
 SystemExit.
 """
 
+import csv
+
 import pytest
 from Bio import SeqIO
 
@@ -149,6 +151,42 @@ def test_cancelar_no_deja_archivos_a_medio_escribir(params, entrada, fixtures_bl
 def test_sin_cancelar_no_se_cancela(params):
     resultado = ejecutar(params, cancelado=lambda: False)
     assert len(resultado.muestras) == 16
+
+
+# ----------------------------------------------------------------------------
+# BUG-1: una muestra que no se pudo consultar no es una muestra sin hits
+# ----------------------------------------------------------------------------
+
+
+def test_una_muestra_que_no_se_pudo_consultar_se_informa_aparte(params, entrada, fixtures_blast):
+    asignaciones = dict(FIXTURE_POR_MUESTRA)
+    asignaciones["S01"] = MotorFalso.ERROR  # a esta se le cayó la consulta
+    asignaciones["S09"] = "sin_hits"  # a esta se le preguntó y no hubo nada
+    motor = MotorFalso(fixtures_blast, asignaciones)
+    con_blast = Parametros(entrada=entrada, salida=params.salida, no_blast=False)
+    resultado = ejecutar(con_blast, motor=motor)
+
+    por_nombre = {m.nombre: m for m in resultado.muestras}
+    fallada, sin_hit = por_nombre["S01"], por_nombre["S09"]
+    assert fallada.error_blast and fallada.interpretacion.startswith("ERROR_BLAST")
+    assert sin_hit.error_blast is None and sin_hit.interpretacion == "sin_hit"
+
+    # y el resumen las cuenta separadas, que es donde se ve de un vistazo
+    resumen = (params.salida / "00_resumen.txt").read_text(encoding="utf-8")
+    assert "ERROR_BLAST=1" in resumen and "sin_hit=1" in resumen
+
+
+def test_la_muestra_no_consultada_no_trae_especie(params, entrada, fixtures_blast):
+    asignaciones = dict.fromkeys(FIXTURE_POR_MUESTRA, MotorFalso.ERROR)
+    motor = MotorFalso(fixtures_blast, asignaciones)
+    con_blast = Parametros(entrada=entrada, salida=params.salida, no_blast=False)
+    ejecutar(con_blast, motor=motor)
+
+    with open(params.salida / "04_resultados.csv", encoding="utf-8-sig", newline="") as fh:
+        filas = list(csv.DictReader(fh, delimiter=";"))
+    consultadas = [f for f in filas if f["interpretacion"]]
+    assert consultadas and all(f["interpretacion"].startswith("ERROR_BLAST") for f in consultadas)
+    assert all(f["especie_1"] == "" and f["identidad_1"] == "" for f in consultadas)
 
 
 # ----------------------------------------------------------------------------

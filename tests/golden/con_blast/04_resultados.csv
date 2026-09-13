@@ -1,9 +1,9 @@
-﻿muestra;grupo;origen;largo;q_media;pct_q20;solapamiento;discrepancias;conflictos;especie_1;identidad_1;cobertura_1;evalue_1;accession_1;especie_2;identidad_2;especie_3;identidad_3;interpretacion;motivo;vs_confiables;archivos
+﻿muestra;grupo;origen;largo;q_media;pct_q20;solapamiento;discrepancias;conflictos;especie_1;identidad_1;cobertura_1;evalue_1;accession_1;especie_2;identidad_2;especie_3;identidad_3;interpretacion;motivo;coincide_con;archivos
 S01;CONFIABLE;CONSENSO_F+R;260;39,4;100,0;200;0;0;Bos taurus;99,62;100,0;1e-120;XX000001.1;Bubalus bubalis;91,54;;;identificado;;;S01_F.ab1 | S01_R.ab1
 S02;CONFIABLE;CONSENSO_F+R;260;36,8;100,0;139;10;0;Bos taurus;99,23;100,0;2e-115;XX000003.1;Bos indicus;99,23;Bison bison;96,1;identificado a nivel de género (Bos taurus / Bos indicus);;;S02_F.ab1 | S02_R.ab1
 S03;CONFIABLE;SOLO_F;260;37,4;100,0;;;;Canis lupus;98,85;99,6;5e-110;XX000006.1;Vulpes vulpes;98,46;;;ambiguo: dos especies con identidad similar;;;S03_F.ab1
 S04;CONFIABLE;SOLO_R;205;37,3;100,0;;;;Gallus gallus;99,05;42,3;1,3e-40;XX000008.1;;;;;cobertura_baja (42.3%): hit parcial, revisar;;;S04_F.ab1 | S04_R.ab1
-S09;CONFIABLE;SOLO_F;230;37,5;100,0;;;;;;;;;;;;;sin_hit;;;S09_F.ab1 | S09_R.ab1
+S09;CONFIABLE;SOLO_F;230;37,5;100,0;;;;;;;;;;;;;sin_hit;6 conflictos F/R con buena calidad: posible mezcla;;S09_F.ab1 | S09_R.ab1
 S12;CONFIABLE;SOLO_?;260;37,9;100,0;;;;Bos taurus;99,23;100,0;2e-115;XX000003.1;Bos indicus;99,23;Bison bison;96,1;identificado a nivel de género (Bos taurus / Bos indicus);;;S12.ab1
 S13;CONFIABLE;SOLO_R;260;37,5;100,0;;;;Bos taurus;99,62;100,0;1e-120;XX000001.1;Bubalus bubalis;91,54;;;identificado;;;S13_F.ab1 | S13_R.ab1
 S14;CONFIABLE;SOLO_R;260;37,6;100,0;;;;Canis lupus;98,85;99,6;5e-110;XX000006.1;Vulpes vulpes;98,46;;;ambiguo: dos especies con identidad similar;;;S14_R.ab1

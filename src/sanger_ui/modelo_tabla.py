@@ -51,7 +51,7 @@ COLUMNAS = (
     Columna("Accession", lambda m: _hit(m, "accession"), "doble clic: abre el registro en NCBI"),
     Columna("Interpretación", lambda m: m.interpretacion or ""),
     Columna("Motivo", lambda m: m.motivo, "por qué no llegó a CONFIABLE"),
-    Columna("vs confiables", lambda m: m.vs_confiables or "", "segunda opinión, sin BLAST"),
+    Columna("Coincide con", lambda m: m.coincide_con or "", "segunda opinión, sin BLAST"),
 )
 COLUMNA_ACCESSION = next(i for i, c in enumerate(COLUMNAS) if c.titulo == "Accession")
 

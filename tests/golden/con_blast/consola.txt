@@ -36,7 +36,7 @@ Clasificación por muestra:
   S06          DUDOSA       SOLO_F         150 pb  Q=27.3  con recorte Q20 quedaban 80 pb - se usó recorte Q15 | 53.3% bases Q20 < 80.0%
   S07          RECHAZADA    ninguna lectura con señal utilizable
   S08          RECHAZADA    ninguna lectura con señal utilizable
-  S09          CONFIABLE    SOLO_F         230 pb  Q=37.5  
+  S09          CONFIABLE    SOLO_F         230 pb  Q=37.5  6 conflictos F/R con buena calidad: posible mezcla
   S10          DUDOSA       SOLO_F         150 pb  Q=26.6  con recorte Q20 quedaban 80 pb - se usó recorte Q15 | 50.7% bases Q20 < 80.0% | 4 bases ambiguas
   S11          RECHAZADA    hay señal pero ni con recorte Q15 se llega a 60 pb
   S12          CONFIABLE    SOLO_?         260 pb  Q=37.9  

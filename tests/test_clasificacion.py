@@ -119,20 +119,28 @@ def test_archivos_de_la_muestra_en_orden(params):
 # ----------------------------------------------------------------------------
 
 
-def test_mezcla_hoy_gana_la_lectura_sola_y_se_pierde_la_alerta(params):
+def test_con_mezcla_la_alerta_aparece_aunque_gane_la_lectura_sola(params):
     """
-    HALLAZGO, no es un error de este refactor: así se comporta el script original.
+    Corregido en la fase 4, por decisión de Victoria.
 
     Con dos plantillas mezcladas el consenso detecta los conflictos F/R, pero en
-    cada conflicto su calidad queda baja (diferencia de Q entre las dos bases),
-    el recorte lo achica y pierde contra la lectura sola. La muestra termina
-    CONFIABLE y sin la alerta de "posible mezcla". Si Victoria decide cambiarlo,
-    va en la fase 4 y este test se actualiza ahí.
+    cada conflicto su calidad queda baja (la diferencia de Q entre las dos
+    bases), el recorte lo achica y termina ganando la lectura sola. Antes, ahí
+    se perdía la alerta y la muestra salía CONFIABLE sin ninguna marca: la señal
+    de posible mezcla desaparecía justo cuando más importaba.
+
+    El grupo no cambia: la secuencia elegida sigue siendo buena. Lo que cambia
+    es que queda dicho que hay que mirarla.
     """
     m = _par(Perfil.MEZCLA, Perfil.BUENA, params)
     assert m.grupo == Grupo.CONFIABLE
     assert m.origen.startswith("SOLO_")
-    assert "posible mezcla" not in m.motivo
+    assert "conflictos F/R con buena calidad: posible mezcla" in m.motivo
+
+
+def test_sin_mezcla_no_se_inventa_ninguna_alerta(params):
+    assert "posible mezcla" not in _par(Perfil.BUENA, Perfil.BUENA, params).motivo
+    assert "posible mezcla" not in _sola(Perfil.BUENA, params).motivo
 
 
 # ----------------------------------------------------------------------------

@@ -51,7 +51,7 @@ def muestras():
         Muestra("A1", ("A1_F.ab1",), Grupo.CONFIABLE, "CONSENSO_F+R", "ACGT", 260, 38.2, 99.0,
                 200, 1, 0, hits=[hit], interpretacion="identificado"),
         Muestra("B2", ("B2_F.ab1",), Grupo.DUDOSA, "SOLO_F", "ACGT", 90, 21.0, 55.0,
-                motivos=["largo 90 < 100"], vs_confiables="coincide con A1 (100.0% en 70 bases)"),
+                motivos=["largo 90 < 100"], coincide_con="coincide con A1 (100.0% en 70 bases)"),
         Muestra("C3", ("C3_F.ab1",), motivos=["ninguna lectura con señal utilizable"]),
     ]  # fmt: skip
 

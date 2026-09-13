@@ -28,7 +28,7 @@ COLUMNAS_RESULTADOS = [
     "conflictos",
     "especie_1", "identidad_1", "cobertura_1", "evalue_1", "accession_1",
     "especie_2", "identidad_2", "especie_3", "identidad_3", "interpretacion",
-    "motivo", "vs_confiables", "archivos",
+    "motivo", "coincide_con", "archivos",
 ]  # fmt: skip
 
 ORDEN_GRUPOS = {Grupo.CONFIABLE: 0, Grupo.DUDOSA: 1, Grupo.RECHAZADA: 2}
@@ -105,7 +105,7 @@ def filas_resultados(muestras: Iterable[Muestra], ordenar: bool = True) -> list[
             conflictos=_celda(m.conflictos),
             interpretacion=_celda(m.interpretacion),
             motivo=m.motivo,
-            vs_confiables=_celda(m.vs_confiables),
+            coincide_con=_celda(m.coincide_con),
             archivos=SEP_INTERNO.join(m.archivos),
         )
         for n, h in enumerate(m.hits, 1):
@@ -133,7 +133,12 @@ def escribir_fasta(ruta: Path, muestras: Sequence[Muestra], revisar: bool = Fals
         if revisar:
             descripcion += f" REVISAR: {m.motivo}"
         registros.append(SeqRecord(Seq(m.secuencia), id=m.nombre, description=descripcion))
-    SeqIO.write(registros, ruta, "fasta")
+    # UTF-8 y fin de línea LF, siempre. Antes se usaba la codificación del
+    # sistema: en Windows el motivo de las DUDOSAS ("se usó recorte") salía en
+    # cp1252 y se veía roto en cualquier herramienta que espere UTF-8, y además
+    # el archivo cambiaba según la máquina donde se corriera (fase 4).
+    with open(ruta, "w", encoding="utf-8", newline="\n") as fh:
+        SeqIO.write(registros, fh, "fasta")
 
 
 def escribir_hits_json(ruta: Path, muestras: Iterable[Muestra]) -> None:
