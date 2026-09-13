@@ -80,10 +80,18 @@ def filas_qc(lecturas: Iterable[Lectura]) -> list[dict]:
     ]
 
 
-def filas_resultados(muestras: Iterable[Muestra]) -> list[dict]:
-    """Una fila por muestra, ordenadas CONFIABLE → DUDOSA → RECHAZADA y por nombre."""
+def filas_resultados(muestras: Iterable[Muestra], ordenar: bool = True) -> list[dict]:
+    """
+    Una fila por muestra, ordenadas CONFIABLE → DUDOSA → RECHAZADA y por nombre.
+
+    Con ordenar=False se respeta el orden recibido: lo usa la exportación de las
+    filas visibles, que sale en el orden en que la persona dejó la tabla.
+    """
     filas = []
-    for m in sorted(muestras, key=lambda x: (ORDEN_GRUPOS[x.grupo], x.nombre)):
+    lista = (
+        sorted(muestras, key=lambda x: (ORDEN_GRUPOS[x.grupo], x.nombre)) if ordenar else muestras
+    )
+    for m in lista:
         fila = {k: "" for k in COLUMNAS_RESULTADOS}
         fila.update(
             muestra=m.nombre,
@@ -144,6 +152,32 @@ ARCHIVOS = {
     "05": "05_hits_completos.json",
 }
 TODOS = tuple(ARCHIVOS)
+
+# La exportación filtrada sale con otro nombre a propósito: un archivo que
+# contiene solo una parte de las muestras no puede llamarse igual que el
+# completo, o alguien lo va a leer como si fuera toda la corrida.
+ARCHIVO_FILTRADO = "04_resultados_filtrado.csv"
+
+
+def escribir_resultados_filtrados(
+    muestras: Sequence[Muestra],
+    destino: Path,
+    sep: str = ";",
+    decimal_coma: bool = True,
+) -> Path:
+    """
+    Escribe solo esas muestras, en ese orden, con el mismo formato de siempre.
+
+    Las demás salidas (QC por lectura, FASTA, resumen) no se filtran: son de la
+    corrida entera y filtrarlas cambiaría lo que significan.
+    """
+    destino = Path(destino)
+    destino.mkdir(parents=True, exist_ok=True)
+    ruta = destino / ARCHIVO_FILTRADO
+    escribir_csv(
+        ruta, COLUMNAS_RESULTADOS, filas_resultados(muestras, ordenar=False), sep, decimal_coma
+    )
+    return ruta
 
 
 def escribir_informes(

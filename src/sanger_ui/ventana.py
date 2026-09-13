@@ -40,7 +40,7 @@ from PySide6.QtWidgets import (
 
 from sanger.config import PRESETS, Parametros, valores_de_preset
 from sanger.errores import Cancelado
-from sanger.io.informes import escribir_informes
+from sanger.io.informes import escribir_informes, escribir_resultados_filtrados
 from sanger.modelos import Grupo, Progreso, Resultado
 from sanger_ui import avance, cache_local, preferencias
 from sanger_ui.exportar import DialogoExportar
@@ -263,6 +263,9 @@ class Ventana(QMainWindow):
         self.tabla = QTableView()
         self.tabla.setModel(self.proxy)
         self.tabla.setSortingEnabled(True)
+        # sin ordenar por ninguna columna: la tabla abre en el mismo orden que
+        # 04_resultados.csv (CONFIABLE → DUDOSA → RECHAZADA, y por nombre)
+        self.tabla.sortByColumn(-1, Qt.SortOrder.AscendingOrder)
         self.tabla.setAlternatingRowColors(False)
         self.tabla.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -537,12 +540,25 @@ class Ventana(QMainWindow):
         self.estado.setText("Terminó con error (ver el mensaje).")
         QMessageBox.critical(self, "El análisis no pudo terminar", str(error))
 
+    def muestras_visibles(self) -> list:
+        """Las muestras que se están viendo, en el orden en que se ven."""
+        return [
+            self.modelo.muestra_en(self.proxy.mapToSource(self.proxy.index(fila, 0)).row())
+            for fila in range(self.proxy.rowCount())
+        ]
+
     def exportar(self) -> None:
         """Escribe los informes elegidos, con el mismo código que la línea de comandos."""
         if self.resultado is None:
             QMessageBox.information(self, "Todavía no hay resultados", "Primero corré un análisis.")
             return
-        dialogo = DialogoExportar(self, destino_sugerido=self.ultima_exportacion)
+        visibles = self.muestras_visibles()
+        dialogo = DialogoExportar(
+            self,
+            destino_sugerido=self.ultima_exportacion,
+            visibles=len(visibles),
+            total=self.modelo.rowCount(),
+        )
         if dialogo.exec() != DialogoExportar.DialogCode.Accepted:
             return
         destino, cuales = dialogo.destino(), dialogo.elegidos()
@@ -551,14 +567,19 @@ class Ventana(QMainWindow):
                 self, "Falta elegir", "Indicá una carpeta y al menos un archivo para exportar."
             )
             return
+        filtrar = dialogo.filtrar_resultados()
+        sep, decimal_coma = self.params.sep_csv, self.params.decimal_coma
         try:
             escritos = escribir_informes(
                 self.resultado,
                 destino,
-                self.params.sep_csv,
-                self.params.decimal_coma,
-                cuales,
+                sep,
+                decimal_coma,
+                [c for c in cuales if not (filtrar and c == "04")],
             )
+            if filtrar and "04" in cuales:
+                # solo esta salida se filtra, y sale con otro nombre
+                escritos.append(escribir_resultados_filtrados(visibles, destino, sep, decimal_coma))
         except OSError as e:
             QMessageBox.critical(self, "No se pudo exportar", str(e))
             return
