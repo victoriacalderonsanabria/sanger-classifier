@@ -173,6 +173,10 @@ class Ventana(QMainWindow):
 
         grupo_blast = QGroupBox("Búsqueda en GenBank")
         form = QFormLayout(grupo_blast)
+        # El perfil, su aviso y los botones del Default son UNA cosa: con el
+        # interlineado de formulario quedaban tan separados que no se leían
+        # juntos. Las líneas de ayuda van pegadas a lo que explican.
+        form.setVerticalSpacing(4)
         fila_preset = QWidget()
         caja_preset = QHBoxLayout(fila_preset)
         caja_preset.setContentsMargins(0, 0, 0, 0)
@@ -196,16 +200,18 @@ class Ventana(QMainWindow):
         # Esto sí queda siempre a la vista, y es una línea: un umbral de
         # identidad no define una especie y el combo no puede dar a entender
         # que sí.
+        # sin etiqueta a la izquierda (addRow de un solo argumento): ocupan el
+        # ancho entero y no dejan una columna vacía al costado
         self.etiqueta_preset = QLabel(AVISO_PRESETS)
         self.etiqueta_preset.setWordWrap(True)
         self.etiqueta_preset.setStyleSheet("color: gray;")
-        form.addRow("", self.etiqueta_preset)
+        form.addRow(self.etiqueta_preset)
 
         self.detalle_preset = QLabel("")
         self.detalle_preset.setWordWrap(True)
-        self.detalle_preset.setStyleSheet("color: gray;")
+        self.detalle_preset.setStyleSheet("color: gray; margin-top: 4px;")
         self.detalle_preset.setVisible(False)
-        form.addRow("", self.detalle_preset)
+        form.addRow(self.detalle_preset)
 
         # Cada equipo que use el programa puede tener criterios distintos a los
         # del laboratorio. En vez de pedirle que los cargue a mano en cada
@@ -227,7 +233,7 @@ class Ventana(QMainWindow):
         caja_default.addWidget(self.b_guardar_default)
         caja_default.addWidget(self.b_restaurar_default)
         caja_default.addStretch()
-        form.addRow("", fila_default)
+        form.addRow(fila_default)
         self.v_db = QComboBox()
         self.v_db.setEditable(True)
         self.v_db.addItems(BASES)
@@ -240,7 +246,7 @@ class Ventana(QMainWindow):
         self.v_noblast = QCheckBox(
             "Solo control de calidad y clasificación (sin BLAST; es instantáneo)"
         )
-        form.addRow("", self.v_noblast)
+        form.addRow(self.v_noblast)
         layout.addWidget(grupo_blast)
 
         grupo_umbrales = QGroupBox(

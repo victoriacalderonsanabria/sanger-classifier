@@ -18,7 +18,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6", reason="la ventana necesita PySide6 (pip install -e .[ui])")
 
 from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
+from PySide6.QtWidgets import QApplication, QFormLayout, QMessageBox  # noqa: E402
 
 import paridad  # noqa: E402
 from sanger.cli import main as cli_main  # noqa: E402
@@ -211,6 +211,17 @@ def test_la_explicacion_del_perfil_esta_a_mano_pero_no_ocupa_lugar(ventana):
     assert ventana.detalle_preset.text() == texto
     ventana.b_info_preset.setChecked(False)
     assert not ventana.detalle_preset.isVisibleTo(ventana)
+
+
+def test_las_lineas_de_ayuda_van_pegadas_a_lo_que_explican(ventana):
+    # el interlineado de formulario separaba tanto el perfil, su aviso y los
+    # botones que no se leían como una sola cosa (Victoria, 13/09/2026)
+    form = ventana.etiqueta_preset.parentWidget().layout()
+    assert form.verticalSpacing() <= 6
+    for w in (ventana.etiqueta_preset, ventana.detalle_preset):
+        _, rol = form.getWidgetPosition(w)
+        # sin etiqueta a la izquierda: ocupan el ancho entero
+        assert rol == QFormLayout.ItemRole.SpanningRole
 
 
 def test_el_perfil_principal_es_el_del_laboratorio(ventana):
