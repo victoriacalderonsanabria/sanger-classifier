@@ -27,16 +27,7 @@ from sanger.config import Parametros
 from sanger.ensamblado.comparacion import comparar_con_confiables, veredicto_comparacion
 from sanger.errores import Cancelado, SinArchivosError
 from sanger.io.ab1 import descubrir_archivos, leer_ab1
-from sanger.io.informes import (
-    COLUMNAS_QC,
-    COLUMNAS_RESULTADOS,
-    escribir_csv,
-    escribir_fasta,
-    escribir_hits_json,
-    filas_qc,
-    filas_resultados,
-    texto_resumen,
-)
+from sanger.io.informes import escribir_informes, texto_resumen
 from sanger.io.nombres import muestra_y_sentido
 from sanger.modelos import (
     Avisar,
@@ -77,6 +68,12 @@ def _leer_y_evaluar(ruta: Path, params: Parametros) -> Lectura:
     )
 
 
+def _escribir(params: Parametros, resultado: Resultado, cuales) -> None:
+    """Escribe esos informes, salvo que la corrida sea sin carpeta de salida."""
+    if params.escribe_informes:
+        escribir_informes(resultado, params.salida, params.sep_csv, params.decimal_coma, cuales)
+
+
 def motor_por_defecto(params: Parametros, carpeta_xml: Path) -> MotorBlast:
     if params.blast_local:
         return MotorLocal(carpeta_xml, params.blast_local)
@@ -113,9 +110,11 @@ def ejecutar(
     t_inicio = time.time()
     t_blast = 0.0
     entrada, salida = params.entrada, params.salida
-    salida.mkdir(parents=True, exist_ok=True)
-    xml_dir = salida / "blast_xml"
-    xml_dir.mkdir(exist_ok=True)
+    if salida is not None:
+        salida.mkdir(parents=True, exist_ok=True)
+    xml_dir = params.cache
+    if xml_dir is not None:
+        xml_dir.mkdir(parents=True, exist_ok=True)
     if params.email:
         configurar_email(params.email)
 
@@ -135,13 +134,7 @@ def ejecutar(
         lec = _leer_y_evaluar(ruta, params)
         lecturas.append(lec)
         progreso(Progreso("qc", hechas + 1, len(archivos), _linea_qc(lec, params)))
-    escribir_csv(
-        salida / "01_QC_lecturas.csv",
-        COLUMNAS_QC,
-        filas_qc(lecturas),
-        params.sep_csv,
-        params.decimal_coma,
-    )
+    _escribir(params, Resultado(lecturas, []), ("01",))
 
     # ---- 2. Por muestra: construir secuencia y clasificar -------------------
     por_muestra = defaultdict(list)
@@ -172,8 +165,7 @@ def ejecutar(
         len(dudosas),
         len(muestras) - len(confiables) - len(dudosas),
     )
-    escribir_fasta(salida / "02_confiables.fasta", confiables)
-    escribir_fasta(salida / "03_dudosas.fasta", dudosas, revisar=True)
+    _escribir(params, Resultado(lecturas, muestras), ("02", "03"))
 
     # ---- 3. Dudosas vs confiables de la misma corrida -----------------------
     refs = [(m.nombre, m.secuencia) for m in confiables]
@@ -232,25 +224,21 @@ def ejecutar(
             m.interpretacion = "sin_blast" if con_blast else ""
 
     # ---- 5. Informes --------------------------------------------------------
-    escribir_csv(
-        salida / "04_resultados.csv",
-        COLUMNAS_RESULTADOS,
-        filas_resultados(muestras),
-        params.sep_csv,
-        params.decimal_coma,
-    )
-    escribir_hits_json(salida / "05_hits_completos.json", muestras)
+    con_blast = not params.no_blast
+    _escribir(params, Resultado(lecturas, muestras, con_blast=con_blast), ("04", "05"))
 
+    # el tiempo se mide donde lo medía el original: con 04 y 05 ya escritos
     t_total = time.time() - t_inicio
-    texto = texto_resumen(lecturas, muestras, not params.no_blast, t_total, t_blast)
-    (salida / "00_resumen.txt").write_text(texto, encoding="utf-8")
-    log.info("listo en %.0f s; resultados en %s", t_total, salida.resolve())
-    progreso(
-        Progreso(
-            "informes",
-            1,
-            1,
-            "\n" + texto + f"\n\nListo. Resultados en {salida.resolve()}",
-        )
-    )
-    return Resultado(lecturas, muestras, segundos_total=t_total, segundos_blast=t_blast)
+    resultado = Resultado(lecturas, muestras, t_total, t_blast, con_blast)
+    _escribir(params, resultado, ("00",))
+
+    texto = texto_resumen(lecturas, muestras, con_blast, t_total, t_blast)
+    if params.escribe_informes:
+        log.info("listo en %.0f s; resultados en %s", t_total, salida.resolve())
+        cierre = f"\n\nListo. Resultados en {salida.resolve()}"
+    else:
+        # corriendo desde la ventana no se escribe nada: se exporta a pedido
+        log.info("listo en %.0f s; sin escribir informes", t_total)
+        cierre = "\n\nListo."
+    progreso(Progreso("informes", 1, 1, "\n" + texto + cierre))
+    return resultado

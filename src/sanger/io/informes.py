@@ -80,10 +80,18 @@ def filas_qc(lecturas: Iterable[Lectura]) -> list[dict]:
     ]
 
 
-def filas_resultados(muestras: Iterable[Muestra]) -> list[dict]:
-    """Una fila por muestra, ordenadas CONFIABLE → DUDOSA → RECHAZADA y por nombre."""
+def filas_resultados(muestras: Iterable[Muestra], ordenar: bool = True) -> list[dict]:
+    """
+    Una fila por muestra, ordenadas CONFIABLE → DUDOSA → RECHAZADA y por nombre.
+
+    Con ordenar=False se respeta el orden recibido: lo usa la exportación de las
+    filas visibles, que sale en el orden en que la persona dejó la tabla.
+    """
     filas = []
-    for m in sorted(muestras, key=lambda x: (ORDEN_GRUPOS[x.grupo], x.nombre)):
+    lista = (
+        sorted(muestras, key=lambda x: (ORDEN_GRUPOS[x.grupo], x.nombre)) if ordenar else muestras
+    )
+    for m in lista:
         fila = {k: "" for k in COLUMNAS_RESULTADOS}
         fila.update(
             muestra=m.nombre,
@@ -133,6 +141,91 @@ def escribir_hits_json(ruta: Path, muestras: Iterable[Muestra]) -> None:
     datos = {m.nombre: [h.como_dict() for h in m.hits] for m in muestras if m.hits}
     with open(ruta, "w", encoding="utf-8") as fh:
         json.dump(datos, fh, indent=2, ensure_ascii=False)
+
+
+ARCHIVOS = {
+    "00": "00_resumen.txt",
+    "01": "01_QC_lecturas.csv",
+    "02": "02_confiables.fasta",
+    "03": "03_dudosas.fasta",
+    "04": "04_resultados.csv",
+    "05": "05_hits_completos.json",
+}
+TODOS = tuple(ARCHIVOS)
+
+# La exportación filtrada sale con otro nombre a propósito: un archivo que
+# contiene solo una parte de las muestras no puede llamarse igual que el
+# completo, o alguien lo va a leer como si fuera toda la corrida.
+ARCHIVO_FILTRADO = "04_resultados_filtrado.csv"
+
+
+def escribir_resultados_filtrados(
+    muestras: Sequence[Muestra],
+    destino: Path,
+    sep: str = ";",
+    decimal_coma: bool = True,
+) -> Path:
+    """
+    Escribe solo esas muestras, en ese orden, con el mismo formato de siempre.
+
+    Las demás salidas (QC por lectura, FASTA, resumen) no se filtran: son de la
+    corrida entera y filtrarlas cambiaría lo que significan.
+    """
+    destino = Path(destino)
+    destino.mkdir(parents=True, exist_ok=True)
+    ruta = destino / ARCHIVO_FILTRADO
+    escribir_csv(
+        ruta, COLUMNAS_RESULTADOS, filas_resultados(muestras, ordenar=False), sep, decimal_coma
+    )
+    return ruta
+
+
+def escribir_informes(
+    resultado,
+    destino: Path,
+    sep: str = ";",
+    decimal_coma: bool = True,
+    cuales: Sequence[str] = TODOS,
+) -> list[Path]:
+    """
+    Escribe los informes pedidos a partir de un Resultado.
+
+    Es el ÚNICO lugar donde se escriben los informes: lo usa el pipeline cuando
+    corre por línea de comandos y también la exportación de la ventana. Dos
+    caminos de escritura que tienen que producir lo mismo terminan divergiendo.
+    """
+    destino = Path(destino)
+    destino.mkdir(parents=True, exist_ok=True)
+    escritos = []
+    for cual in cuales:
+        ruta = destino / ARCHIVOS[cual]
+        if cual == "01":
+            escribir_csv(ruta, COLUMNAS_QC, filas_qc(resultado.lecturas), sep, decimal_coma)
+        elif cual == "02":
+            escribir_fasta(ruta, resultado.del_grupo(Grupo.CONFIABLE))
+        elif cual == "03":
+            escribir_fasta(ruta, resultado.del_grupo(Grupo.DUDOSA), revisar=True)
+        elif cual == "04":
+            escribir_csv(
+                ruta, COLUMNAS_RESULTADOS, filas_resultados(resultado.muestras), sep, decimal_coma
+            )
+        elif cual == "05":
+            escribir_hits_json(ruta, resultado.muestras)
+        elif cual == "00":
+            ruta.write_text(
+                texto_resumen(
+                    resultado.lecturas,
+                    resultado.muestras,
+                    resultado.con_blast,
+                    resultado.segundos_total,
+                    resultado.segundos_blast,
+                ),
+                encoding="utf-8",
+            )
+        else:
+            raise KeyError(f"no existe el informe {cual!r}")
+        escritos.append(ruta)
+    return escritos
 
 
 def formatear_duracion(seg: float) -> str:

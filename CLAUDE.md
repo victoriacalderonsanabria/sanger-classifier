@@ -73,7 +73,9 @@ copias.
 | Qué | Dónde | Por qué |
 |---|---|---|
 | Este repo | fuera de OneDrive (`%USERPROFILE%\repos\sanger-classifier`) | OneDrive pelea con los miles de archivos chicos de `.git` |
-| Build del `.exe` | `C:\Sanger` | Mismo motivo, con los temporales de PyInstaller |
+| Build del `.exe` | `C:\Sanger` (`scripts\construir_exe.ps1`) | Mismo motivo, con los temporales de PyInstaller |
+| Preferencias de la ventana | `~/.sanger/config.json` | Tiene el mail de NCBI: nunca se versiona |
+| Caché de BLAST de la ventana | `%LOCALAPPDATA%\Sanger\cache\<hash de la entrada>` | No es un resultado: es lo que permite retomar. No escribe en las carpetas de datos (OneDrive, discos de solo lectura) |
 | Referencia de paridad | `C:\Sanger\paridad\` | Contiene resultados del ensayo: nunca al repo |
 | Los 192 `.ab1` reales | carpeta del ensayo, fuera del repo | Datos sin publicar |
 
@@ -151,9 +153,29 @@ Decisiones tomadas y validadas. No son accidentes.
 
 ## Arquitectura
 
-Así está desde la fase 1 (salvo `src/sanger_ui/`, que llega en la fase 3).
 `clasificar_sanger.py` en la raíz es solo un punto de entrada que llama a
-`sanger.cli.main`: lo usan la línea de comandos histórica y `sanger_gui.py`.
+`sanger.cli.main`, para que la línea de comandos histórica siga funcionando.
+
+**Un solo escritor de informes**: `io/informes.py::escribir_informes`. Lo usan
+el pipeline (línea de comandos) y la exportación de la ventana. Dos caminos de
+escritura que tienen que producir lo mismo terminan divergiendo; hay un test que
+los compara byte a byte.
+
+**La ventana no escribe informes**: corre con `salida=None` y exporta a pedido.
+El CLI no cambió: `-o` sigue siendo obligatorio y sigue escribiendo los cinco
+archivos.
+
+La ventana (`src/sanger_ui/`, desde la fase 3) es un cliente más del pipeline:
+`worker.py` lo corre en un hilo y reenvía los avisos como señales de Qt. No
+tiene lógica de análisis. Sus tests (`tests/test_ui.py`) corren en modo
+"offscreen" y **se saltean en el CI**, que no instala PySide6; mirar la ventana
+de verdad sigue siendo una prueba manual.
+
+**Presets** (`config.py`): los valores salen de `README_clasificar_sanger.md`.
+**Están pendientes de que Victoria los confirme**; hasta entonces, el que viene
+elegido es "Default", que son los valores por defecto del pipeline. Si el
+usuario edita un umbral, el combo muestra `(modificado)` en vez de cambiar de
+preset: así se ve cuál eligió y que además tocó algo.
 
 ```
 src/sanger/        CORE. No sabe que existe una UI.

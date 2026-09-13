@@ -14,6 +14,10 @@ requires-python = ">=3.11"
 dependencies = ["biopython>=1.85"]
 
 [project.optional-dependencies]
+# La ventana. Aparte porque la línea de comandos no la necesita, y porque
+# PySide6 pesa unos 100 MB: el CI no la instala (los tests de la ventana se
+# saltean solos si no está).
+ui = ["PySide6>=6.7"]
 dev = [
     "pytest>=8",
     "pytest-cov>=5",
@@ -21,8 +25,14 @@ dev = [
     "ruff>=0.6",
 ]
 
+[project.gui-scripts]
+clasificador-sanger = "sanger_ui.app:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+sanger_ui = ["recursos/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -35,9 +45,8 @@ addopts = "-ra --disable-socket"
 line-length = 100
 target-version = "py311"
 src = [".", "src", "scripts", "tests"]
-# legacy/ está congelado para siempre. sanger_gui.py es la ventana original sin
-# tocar: se excluye hasta que la fase 3 la reemplace.
-extend-exclude = ["legacy", "sanger_gui.py"]
+# legacy/ está congelado para siempre.
+extend-exclude = ["legacy"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP"]
