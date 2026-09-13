@@ -22,7 +22,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 import paridad  # noqa: E402
 from sanger.cli import main as cli_main  # noqa: E402
-from sanger.config import PRESETS, Parametros  # noqa: E402
+from sanger.config import Parametros  # noqa: E402
 from sanger.errores import Cancelado  # noqa: E402
 from sanger.io.informes import ARCHIVO_FILTRADO, ARCHIVOS, TODOS  # noqa: E402
 from sanger.modelos import Grupo, Hit, Muestra, Progreso, Resultado  # noqa: E402
@@ -172,66 +172,6 @@ def test_el_cache_se_muestra_y_se_puede_limpiar(ventana, tmp_path):
     assert "liberados" in ventana.estado.text()
 
 
-def _indice_preset(ventana, nombre: str) -> int:
-    return [p.nombre for p in PRESETS].index(nombre)
-
-
-def test_el_preset_carga_los_umbrales(ventana):
-    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
-    assert (ventana.v_largo.value(), ventana.v_ident.value()) == (300, 98.7)
-    assert ventana.v_db.currentText() == "16S_ribosomal_RNA"
-
-
-def test_al_abrir_el_preset_es_default_sin_marca(ventana):
-    assert ventana.v_preset.currentText() == "Default"
-    assert ventana.preset_elegido() == "Default"
-
-
-def test_volver_a_default_repone_todos_los_valores(ventana):
-    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
-    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "Default"))
-    assert ventana.valores_cargados() == {
-        "largo_min": 100,
-        "largo_min_laxo": 60,
-        "ident_min": 97.0,
-        "lote": 50,
-        "db": "nt",
-    }
-
-
-def test_tocar_un_umbral_marca_el_preset_como_modificado(ventana):
-    ventana.v_largo.setValue(250)
-    assert ventana.v_preset.currentText() == "Default (modificado)"
-    assert ventana.preset_elegido() == "Default"  # el preset elegido no cambia
-
-
-def test_la_marca_se_va_sola_si_se_vuelve_al_valor_del_preset(ventana):
-    ventana.v_ident.setValue(95.0)
-    assert "(modificado)" in ventana.v_preset.currentText()
-    ventana.v_ident.setValue(97.0)
-    assert ventana.v_preset.currentText() == "Default"
-
-
-def test_la_marca_vale_para_cualquier_preset(ventana):
-    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "COI Folmer (~650 pb)"))
-    assert ventana.v_preset.currentText() == "COI Folmer (~650 pb)"
-    ventana.v_db.setCurrentText("mito")
-    assert ventana.v_preset.currentText() == "COI Folmer (~650 pb) (modificado)"
-
-
-def test_elegir_otro_preset_limpia_la_marca(ventana):
-    ventana.v_largo.setValue(250)
-    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "ITS hongos"))
-    assert ventana.v_preset.currentText() == "ITS hongos"
-    assert ventana.v_largo.value() == 100  # se repusieron los valores del preset
-
-
-def test_se_recuerda_el_preset_sin_el_sufijo(ventana):
-    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
-    ventana.v_lote.setValue(20)  # queda modificado
-    assert ventana.preferencias_actuales()["preset"] == "16S bacteriano"
-
-
 def test_analizar_sin_carpeta_no_arranca(ventana, monkeypatch):
     avisos = []
     monkeypatch.setattr(
@@ -353,7 +293,7 @@ def test_las_preferencias_se_guardan_y_se_vuelven_a_cargar(app, tmp_path, monkey
     v = Ventana(prefs={})
     v.v_email.setText("alguien@ejemplo.com")
     v.v_entrada.setText(str(tmp_path / "ab1"))
-    v.v_preset.setCurrentText("ITS hongos")
+    v.v_db.setCurrentText("mito")
     v.guardar_preferencias()
     v.close()
 
@@ -361,7 +301,7 @@ def test_las_preferencias_se_guardan_y_se_vuelven_a_cargar(app, tmp_path, monkey
     assert guardadas["email"] == "alguien@ejemplo.com"
     otra = Ventana(prefs=guardadas)
     assert otra.v_email.text() == "alguien@ejemplo.com"
-    assert otra.v_preset.currentText() == "ITS hongos"
+    assert otra.v_db.currentText() == "mito"
     otra.close()
 
 

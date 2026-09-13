@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 CARPETA = Path.home() / ".sanger"
 ARCHIVO = CARPETA / "config.json"
-CLAVES = ("email", "entrada", "exportacion", "preset", "db", "taxon")
+CLAVES = ("email", "entrada", "exportacion", "db", "taxon")
 
 
 def cargar(archivo: Path | None = None) -> dict:

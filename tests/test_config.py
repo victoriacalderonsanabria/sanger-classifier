@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from sanger.config import CAMPOS_PRESET, PRESETS, Parametros, aplicar_preset, valores_de_preset
+from sanger.config import Parametros
 
 
 def test_valores_por_defecto_son_los_validados():
@@ -46,72 +46,3 @@ def test_con_devuelve_una_copia_sin_tocar_la_original():
     otro = p.con(largo_min=300)
     assert (otro.largo_min, p.largo_min) == (300, 100)
     assert otro.entrada == p.entrada
-
-
-# ----------------------------------------------------------------------------
-# Presets (los valores salen de README_clasificar_sanger.md)
-# ----------------------------------------------------------------------------
-
-
-def test_el_preset_default_son_los_valores_por_defecto():
-    # se llama "Default" y no "Personalizado": el usuario no configuró nada,
-    # son los valores validados del pipeline
-    assert PRESETS[0].nombre == "Default"
-    assert valores_de_preset("Default") == {
-        "largo_min": 100,
-        "largo_min_laxo": 60,
-        "ident_min": 97.0,
-        "lote": 50,
-        "db": "nt",
-    }
-
-
-def test_el_preset_default_no_cambia_nada():
-    p = Parametros(entrada="x", largo_min=123)
-    assert aplicar_preset(p, "Default") == p
-
-
-def test_valores_de_preset_incluye_los_campos_que_el_preset_no_toca():
-    # ITS solo cambia la base: el resto tiene que venir con los valores por defecto
-    assert valores_de_preset("ITS hongos") == {
-        "largo_min": 100,
-        "largo_min_laxo": 60,
-        "ident_min": 97.0,
-        "lote": 50,
-        "db": "ITS_RefSeq_Fungi",
-    }
-
-
-def test_preset_coi_folmer_sube_el_largo_minimo():
-    p = aplicar_preset(Parametros(entrada="x"), "COI Folmer (~650 pb)")
-    assert p.largo_min == 300
-    assert (p.ident_min, p.db) == (97.0, "nt")  # lo demás queda como estaba
-
-
-def test_preset_16s_bacteriano():
-    p = aplicar_preset(Parametros(entrada="x"), "16S bacteriano")
-    assert (p.largo_min, p.ident_min, p.db) == (300, 98.7, "16S_ribosomal_RNA")
-
-
-def test_preset_its_hongos_solo_cambia_la_base():
-    p = aplicar_preset(Parametros(entrada="x"), "ITS hongos")
-    assert p.db == "ITS_RefSeq_Fungi"
-    assert (p.largo_min, p.ident_min) == (100, 97.0)
-
-
-def test_los_presets_solo_tocan_campos_que_existen():
-    campos = {f.name for f in dataclasses.fields(Parametros)}
-    for p in PRESETS:
-        assert set(p.cambios) <= campos, p.nombre
-
-
-def test_los_presets_solo_tocan_campos_que_se_ven_en_la_ventana():
-    # si un preset cambiara algo que no se muestra, el usuario no podría saber
-    # que está activo ni que lo modificó
-    for p in PRESETS:
-        assert set(p.cambios) <= set(CAMPOS_PRESET), p.nombre
-
-
-def test_preset_inexistente():
-    with pytest.raises(KeyError):
-        aplicar_preset(Parametros(entrada="x"), "Marcador inventado")

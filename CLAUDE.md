@@ -171,11 +171,11 @@ tiene lógica de análisis. Sus tests (`tests/test_ui.py`) corren en modo
 "offscreen" y **se saltean en el CI**, que no instala PySide6; mirar la ventana
 de verdad sigue siendo una prueba manual.
 
-**Presets** (`config.py`): los valores salen de `README_clasificar_sanger.md`.
-**Están pendientes de que Victoria los confirme**; hasta entonces, el que viene
-elegido es "Default", que son los valores por defecto del pipeline. Si el
-usuario edita un umbral, el combo muestra `(modificado)` en vez de cambiar de
-preset: así se ve cuál eligió y que además tocó algo.
+**Sin presets por ahora.** La ventana tuvo un combo de presets por marcador
+(COI Folmer, 16S bacteriano, ITS hongos); Victoria decidió sacarlo el
+12/09/2026 hasta definirlo con más calma. La ventana arranca con los valores por
+defecto del pipeline, que son los validados con el ensayo de ingestas. Si se
+repone, está en el historial de git (PR #4 y #5).
 
 ```
 src/sanger/        CORE. No sabe que existe una UI.
