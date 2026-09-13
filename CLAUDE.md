@@ -21,10 +21,24 @@ mensajes al usuario, commits, PRs, comentarios. El código existente ya es así.
 
 ## Las tres reglas duras
 
-### 1. Nunca mergear a `main`
+### 1. El merge va después de la validación manual
 
-Abrí el PR y detenete ahí. El merge lo hace Sergio, después de probarlo a mano
-en su máquina. CI verde **no** es autorización para mergear.
+Claude abre el PR y verifica lo automático: CI verde en las cuatro
+combinaciones, los tests y las dos paridades. **Eso no alcanza para mergear.**
+Victoria hace la validación manual —correr la ventana, mirar una corrida
+real— y recién con su visto bueno Claude mergea.
+
+CI verde **no** es autorización para mergear: lo que prueba el CI es que el
+programa hace lo que los tests dicen, no que sirva para lo que ella necesita.
+
+Dos casos en los que igual hay que frenar y preguntar:
+
+- **Un cambio que altera la salida** (la fase 4) necesita el OK explícito de
+  Victoria sobre el cambio en sí, no solo sobre que el programa ande.
+- **Un PR apilado sobre otro** (base distinta de `main`) se avisa en el cuerpo
+  del PR: mergearlo lleva los cambios a la rama de abajo, no a `main`.
+
+(Antes de 12/09/2026 el merge lo hacía Sergio; el cambio lo decidió Victoria.)
 
 Todo PR incluye:
 
@@ -65,6 +79,8 @@ copias.
 - **Una fase por PR**, en el orden del `BRIEFING.md` §9 (tabla de fases en el
   `README.md`). Antes de arrancar cada fase: resumir en tres líneas qué se va a
   hacer y esperar el OK.
+- Cada PR termina con lo que Victoria tiene que mirar para validarlo a mano,
+  bien concreto: qué correr, qué tiene que ver y qué no debería pasar.
 - Ramas: `feat/<n>-descripcion`, `fix/<n>-descripcion`, `chore/<n>-descripcion`.
 - `main` está protegida: nada de push directo ni force-push.
 
