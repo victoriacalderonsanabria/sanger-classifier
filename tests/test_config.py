@@ -54,10 +54,10 @@ def test_con_devuelve_una_copia_sin_tocar_la_original():
 
 
 def test_el_preset_default_son_los_valores_por_defecto():
-    # se llama "Default" y no "Personalizado": el usuario no configuró nada,
+    # se llama "Default/General" y no "Personalizado": el usuario no configuró nada,
     # son los valores validados del pipeline
-    assert PRESETS[0].nombre == "Default"
-    assert valores_de_preset("Default") == {
+    assert PRESETS[0].nombre == "Default/General"
+    assert valores_de_preset("Default/General") == {
         "largo_min": 100,
         "largo_min_laxo": 60,
         "ident_min": 97.0,
@@ -68,7 +68,7 @@ def test_el_preset_default_son_los_valores_por_defecto():
 
 def test_el_preset_default_no_cambia_nada():
     p = Parametros(entrada="x", largo_min=123)
-    assert aplicar_preset(p, "Default") == p
+    assert aplicar_preset(p, "Default/General") == p
 
 
 def test_valores_de_preset_incluye_los_campos_que_el_preset_no_toca():

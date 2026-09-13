@@ -176,11 +176,17 @@ tiene lógica de análisis. Sus tests (`tests/test_ui.py`) corren en modo
 "offscreen" y **se saltean en el CI**, que no instala PySide6; mirar la ventana
 de verdad sigue siendo una prueba manual.
 
-**Presets** (`config.py`): los valores salen de `README_clasificar_sanger.md`.
-**Están pendientes de que Victoria los confirme**; hasta entonces, el que viene
-elegido es "Default", que son los valores por defecto del pipeline. Si el
-usuario edita un umbral, el combo muestra `(modificado)` en vez de cambiar de
-preset: así se ve cuál eligió y que además tocó algo.
+**Perfiles / presets** (`config.py`): confirmados por Victoria el 13/09/2026,
+con un encuadre que no se negocia: **son sugerencias de configuración, no
+criterios de identificación taxonómica**. El 98,7 % del 16S es un valor sugerido
+y de uso frecuente, no un umbral que defina especie. El aviso está siempre a la
+vista en la ventana y cada perfil explica de dónde sale su valor; hay tests que
+lo verifican.
+
+El perfil principal es **"Default/General"**: el programa se usa sobre todo para
+Sanger de virus e identificación de ingestas de mosquitos, y esos son los
+valores validados con el ensayo. Si el usuario edita un umbral, el combo muestra
+`(modificado)` en vez de cambiar de perfil.
 
 ```
 src/sanger/        CORE. No sabe que existe una UI.

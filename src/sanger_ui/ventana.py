@@ -38,7 +38,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from sanger.config import PRESETS, Parametros, valores_de_preset
+from sanger.config import AVISO_PRESETS, PRESETS, Parametros, valores_de_preset
 from sanger.errores import Cancelado
 from sanger.io.informes import escribir_informes, escribir_resultados_filtrados
 from sanger.modelos import Grupo, Progreso, Resultado
@@ -166,7 +166,13 @@ class Ventana(QMainWindow):
         # por índice y no por texto: al marcar "(modificado)" cambia el texto,
         # y buscar el preset por ese texto no encontraría nada
         self.v_preset.currentIndexChanged.connect(self._elegir_preset)
-        form.addRow("Preset:", self.v_preset)
+        form.addRow("Perfil:", self.v_preset)
+        # Que quede a la vista que son sugerencias: un umbral de identidad no
+        # define una especie, y el combo no debería dar a entender lo contrario.
+        self.etiqueta_preset = QLabel(AVISO_PRESETS)
+        self.etiqueta_preset.setWordWrap(True)
+        self.etiqueta_preset.setStyleSheet("color: gray;")
+        form.addRow("", self.etiqueta_preset)
         self.v_db = QComboBox()
         self.v_db.setEditable(True)
         self.v_db.addItems(BASES)
@@ -377,8 +383,11 @@ class Ventana(QMainWindow):
         return PRESETS[max(self.v_preset.currentIndex(), 0)].nombre
 
     def _elegir_preset(self, indice: int) -> None:
-        """Carga en los campos los valores del preset (todos, no solo los que cambia)."""
-        valores = valores_de_preset(PRESETS[indice].nombre)
+        """Carga en los campos los valores del perfil (todos, no solo los que cambia)."""
+        elegido = PRESETS[indice]
+        self.etiqueta_preset.setText(f"{elegido.descripcion}\n\n{AVISO_PRESETS}")
+        self.v_preset.setToolTip(elegido.descripcion)
+        valores = valores_de_preset(elegido.nombre)
         self.v_largo.setValue(valores["largo_min"])
         self.v_largo_laxo.setValue(valores["largo_min_laxo"])
         self.v_ident.setValue(valores["ident_min"])

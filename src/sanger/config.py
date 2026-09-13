@@ -121,40 +121,58 @@ class Parametros:
 
 @dataclass(frozen=True)
 class Preset:
-    """Un conjunto de valores pensado para un marcador concreto."""
+    """Un punto de partida sugerido para un marcador. No es una regla."""
 
     nombre: str
     descripcion: str
     cambios: dict
 
 
-# Los valores salen de README_clasificar_sanger.md, que es la documentación
-# revisada del pipeline; no son invenciones. PENDIENTE: que Victoria los
-# confirme antes de darlos por buenos.
+# QUÉ SON Y QUÉ NO SON (decisión de Victoria, 13/09/2026)
 #
-# Los valores POR DEFECTO (sin preset) son los del ensayo de ingestas: amplicón
-# corto de ~260 pb, por eso largo mínimo 100 y no 300.
+# Son perfiles ORIENTATIVOS: cargan valores razonables en los campos para no
+# arrancar de cero con cada marcador, y después se ajustan a mano. No son
+# criterios de identificación taxonómica. En particular, el 98,7 % de identidad
+# del 16S es un valor SUGERIDO y de uso frecuente en la literatura, no un
+# umbral que defina una especie: eso depende del gen, del grupo y del contexto
+# del ensayo.
+#
+# El perfil principal es "Default/General": el programa está pensado sobre todo
+# para el laboratorio (Sanger de virus e identificación de ingestas de
+# mosquitos), y esos valores son los validados con el ensayo de ingestas
+# (amplicón corto de ~260 pb; por eso largo mínimo 100 y no 300).
+#
+# Los valores de los otros perfiles salen de README_clasificar_sanger.md.
 PRESETS = (
     Preset(
-        "Default",
-        "Los valores por defecto del pipeline, validados con el ensayo de ingestas.",
+        "Default/General",
+        "La configuración habitual del programa, validada con el ensayo de ingestas "
+        "(amplicones de 200–400 pb). Es el punto de partida para el trabajo del laboratorio.",
         {},
     ),
     Preset(
         "COI Folmer (~650 pb)",
-        "Amplicón largo: se sube el largo mínimo a 300 pb.",
+        "Amplicón largo: se sugiere subir el largo mínimo a 300 pb. Ajustalo según "
+        "cuánta secuencia útil deje tu corrida.",
         {"largo_min": 300},
     ),
     Preset(
         "16S bacteriano",
-        "Base curada de 16S e identidad 98,7 %, el corte habitual para bacterias.",
+        "Base curada de 16S y una identidad sugerida de 98,7 %, un valor de uso frecuente "
+        "en la literatura. NO es un umbral que defina especie: tomalo como punto de partida "
+        "y decidí con el contexto del ensayo.",
         {"largo_min": 300, "ident_min": 98.7, "db": "16S_ribosomal_RNA"},
     ),
     Preset(
         "ITS hongos",
-        "Base de ITS de hongos de RefSeq.",
+        "Base de ITS de hongos de RefSeq; el resto de los valores queda como estaba.",
         {"db": "ITS_RefSeq_Fungi"},
     ),
+)
+
+AVISO_PRESETS = (
+    "Los perfiles son sugerencias de configuración, no criterios de identificación "
+    "taxonómica: cargan valores de partida que después conviene ajustar al ensayo."
 )
 
 

@@ -22,7 +22,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 import paridad  # noqa: E402
 from sanger.cli import main as cli_main  # noqa: E402
-from sanger.config import PRESETS, Parametros  # noqa: E402
+from sanger.config import AVISO_PRESETS, PRESETS, Parametros  # noqa: E402
 from sanger.errores import Cancelado  # noqa: E402
 from sanger.io.informes import ARCHIVO_FILTRADO, ARCHIVOS, TODOS  # noqa: E402
 from sanger.modelos import Grupo, Hit, Muestra, Progreso, Resultado  # noqa: E402
@@ -182,14 +182,35 @@ def test_el_preset_carga_los_umbrales(ventana):
     assert ventana.v_db.currentText() == "16S_ribosomal_RNA"
 
 
+def test_el_perfil_dice_que_es_una_sugerencia(ventana):
+    """
+    Un umbral de identidad no define una especie. El combo no puede dar a
+    entender que sí, así que el aviso está siempre a la vista y cada perfil
+    explica de dónde sale su valor (decisión de Victoria, 13/09/2026).
+    """
+    assert "no criterios de identificación taxonómica" in ventana.etiqueta_preset.text()
+
+    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
+    texto = ventana.etiqueta_preset.text()
+    assert "identidad sugerida de 98,7 %" in texto
+    assert "NO es un umbral que defina especie" in texto
+    assert AVISO_PRESETS in texto  # el aviso general no se pierde al elegir uno
+
+
+def test_el_perfil_principal_es_el_del_laboratorio(ventana):
+    # el programa se usa sobre todo para Sanger de virus e ingestas de mosquitos
+    assert ventana.preset_elegido() == "Default/General"
+    assert ventana.valores_cargados()["largo_min"] == 100  # amplicón corto, ~260 pb
+
+
 def test_al_abrir_el_preset_es_default_sin_marca(ventana):
-    assert ventana.v_preset.currentText() == "Default"
-    assert ventana.preset_elegido() == "Default"
+    assert ventana.v_preset.currentText() == "Default/General"
+    assert ventana.preset_elegido() == "Default/General"
 
 
 def test_volver_a_default_repone_todos_los_valores(ventana):
     ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
-    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "Default"))
+    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "Default/General"))
     assert ventana.valores_cargados() == {
         "largo_min": 100,
         "largo_min_laxo": 60,
@@ -201,15 +222,15 @@ def test_volver_a_default_repone_todos_los_valores(ventana):
 
 def test_tocar_un_umbral_marca_el_preset_como_modificado(ventana):
     ventana.v_largo.setValue(250)
-    assert ventana.v_preset.currentText() == "Default (modificado)"
-    assert ventana.preset_elegido() == "Default"  # el preset elegido no cambia
+    assert ventana.v_preset.currentText() == "Default/General (modificado)"
+    assert ventana.preset_elegido() == "Default/General"  # el preset elegido no cambia
 
 
 def test_la_marca_se_va_sola_si_se_vuelve_al_valor_del_preset(ventana):
     ventana.v_ident.setValue(95.0)
     assert "(modificado)" in ventana.v_preset.currentText()
     ventana.v_ident.setValue(97.0)
-    assert ventana.v_preset.currentText() == "Default"
+    assert ventana.v_preset.currentText() == "Default/General"
 
 
 def test_la_marca_vale_para_cualquier_preset(ventana):
