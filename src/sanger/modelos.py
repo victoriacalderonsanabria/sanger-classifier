@@ -149,6 +149,7 @@ class Resultado:
     muestras: list[Muestra]
     segundos_total: float = 0.0
     segundos_blast: float = 0.0
+    con_blast: bool = False  # si no, el resumen no lleva los conteos de BLAST
 
     def del_grupo(self, grupo: Grupo) -> list[Muestra]:
         return [m for m in self.muestras if m.grupo == grupo]

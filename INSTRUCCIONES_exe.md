@@ -35,8 +35,9 @@ abrir). La ventana tiene tres pestañas.
 
 ### 1. Configuración
 
-1. **Carpeta con los .ab1**: donde están los cromatogramas. La carpeta de
-   resultados se propone sola (`resultados` dentro de la misma); se puede cambiar.
+1. **Carpeta con los .ab1**: donde están los cromatogramas. No hace falta elegir
+   carpeta de resultados: el programa **no escribe nada** mientras corre, y al
+   final se exporta lo que se quiera guardar (ver más abajo).
 2. **E-mail**: cualquiera propio. NCBI lo pide para el BLAST remoto. Queda
    guardado para la próxima vez, en tu computadora (`~/.sanger/config.json`).
 3. **Preset**: carga de una los umbrales típicos de un marcador (COI Folmer,
@@ -50,6 +51,11 @@ abrir). La ventana tiene tres pestañas.
    vertebrados; `(sin filtro)` si no se sabe qué esperar.
 6. **Solo control de calidad**: una primera pasada instantánea, sin BLAST, para
    ver cómo quedan los grupos. Después se desmarca y se corre con BLAST.
+7. **Caché de BLAST**: lo que ya se le preguntó a NCBI queda guardado, así una
+   corrida cortada se retoma sin volver a esperar. Se guarda aparte de los datos
+   (en la carpeta del sistema, no en la carpeta de los `.ab1`). La ventana
+   muestra cuánto ocupa y tiene un botón para borrarlo; borrarlo no pierde
+   resultados, solo hace que la próxima corrida vuelva a consultar.
 
 ### 2. Progreso
 
@@ -71,7 +77,19 @@ gris RECHAZADA.
 - **Doble clic sobre un accession** abre ese registro en NCBI.
 - Pasando el mouse sobre una fila DUDOSA se ve por qué quedó así.
 
-Los archivos se escriben igual que siempre: **"Abrir carpeta de resultados"**.
-Lo importante está en `04_resultados.csv` y en `00_resumen.txt`.
+### Guardar los resultados: "Exportar…"
+
+Los archivos se escriben **cuando vos querés**, no en cada corrida. El botón
+**Exportar…** pregunta dónde guardar y qué guardar (vienen todos marcados):
+
+- `04_resultados.csv` — los resultados por muestra, lo principal
+- `01_QC_lecturas.csv` — el control de calidad de cada cromatograma
+- `02_confiables.fasta` / `03_dudosas.fasta` — las secuencias
+- `05_hits_completos.json` — los hits completos de BLAST
+- `00_resumen.txt` — el resumen de la corrida
+
+Son exactamente los mismos archivos que genera la versión de línea de comandos.
+Si cerrás la ventana (o arrancás otra corrida) con resultados sin exportar, el
+programa avisa antes de perderlos.
 
 Qué significa cada grupo y cada columna: ver `README_clasificar_sanger.md`.

@@ -17,14 +17,16 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6", reason="la ventana necesita PySide6 (pip install -e .[ui])")
 
 from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 import paridad  # noqa: E402
 from sanger.cli import main as cli_main  # noqa: E402
 from sanger.config import PRESETS, Parametros  # noqa: E402
 from sanger.errores import Cancelado  # noqa: E402
+from sanger.io.informes import ARCHIVOS, TODOS  # noqa: E402
 from sanger.modelos import Grupo, Hit, Muestra, Progreso, Resultado  # noqa: E402
-from sanger_ui import preferencias  # noqa: E402
+from sanger_ui import cache_local, preferencias  # noqa: E402
+from sanger_ui.exportar import DialogoExportar  # noqa: E402
 from sanger_ui.modelo_tabla import (  # noqa: E402
     COLUMNA_ACCESSION,
     COLUMNAS,
@@ -57,8 +59,12 @@ def muestras():
 def ventana(app, tmp_path, monkeypatch):
     # las preferencias no se tocan en el disco de quien corre los tests
     monkeypatch.setattr(preferencias, "ARCHIVO", tmp_path / "config.json")
+    # el caché tampoco: cada test usa el suyo
+    monkeypatch.setattr(cache_local, "raiz", lambda: tmp_path / "cache")
     v = Ventana(prefs={})
     yield v
+    # cerrar con resultados sin exportar pregunta: en los tests nadie contesta
+    v.exportado = True
     v.close()
 
 
@@ -121,7 +127,6 @@ def test_el_accession_lleva_al_registro_de_ncbi():
 
 def test_los_campos_se_traducen_a_parametros(ventana, tmp_path):
     ventana.v_entrada.setText(str(tmp_path))
-    ventana.v_salida.setText(str(tmp_path / "res"))
     ventana.v_email.setText("alguien@ejemplo.com")
     ventana.v_largo.setValue(300)
     ventana.v_largo_laxo.setValue(50)
@@ -131,9 +136,9 @@ def test_los_campos_se_traducen_a_parametros(ventana, tmp_path):
     ventana.v_taxon.setCurrentText("Vertebrata[Organism]")
     p = ventana.parametros()
     assert p == Parametros(
-        entrada=tmp_path, salida=tmp_path / "res", email="alguien@ejemplo.com",
-        largo_min=300, largo_min_laxo=50, ident_min=98.7, lote=20, db="mito",
-        taxon="Vertebrata[Organism]",
+        entrada=tmp_path, salida=None, carpeta_cache=cache_local.carpeta_para(tmp_path),
+        email="alguien@ejemplo.com", largo_min=300, largo_min_laxo=50, ident_min=98.7,
+        lote=20, db="mito", taxon="Vertebrata[Organism]",
     )  # fmt: skip
 
 
@@ -143,9 +148,27 @@ def test_sin_filtro_taxonomico_no_se_manda_taxon(ventana, tmp_path):
     assert ventana.parametros().taxon is None
 
 
-def test_la_carpeta_de_resultados_se_propone_sola(ventana, tmp_path):
-    ventana.v_entrada.setText(str(tmp_path / "ab1"))
-    assert ventana.v_salida.text() == str(tmp_path / "ab1" / "resultados")
+def test_la_ventana_no_escribe_nada_al_disco(ventana, tmp_path):
+    # los informes se exportan a pedido: correr no ensucia el disco
+    ventana.v_entrada.setText(str(tmp_path))
+    assert ventana.parametros().salida is None
+    assert not hasattr(ventana, "v_salida")
+
+
+def test_el_cache_se_muestra_y_se_puede_limpiar(ventana, tmp_path):
+    ventana.v_entrada.setText(str(tmp_path))
+    assert "vacío" in ventana.etiqueta_cache.text()
+    assert not ventana.b_limpiar_cache.isEnabled()
+
+    carpeta = cache_local.preparar(tmp_path)
+    (carpeta / "M1.hits.json").write_text("[]" * 600, encoding="utf-8")
+    ventana._refrescar_cache()
+    assert "KB" in ventana.etiqueta_cache.text()
+    assert ventana.b_limpiar_cache.isEnabled()
+
+    ventana.limpiar_cache()
+    assert not carpeta.exists()
+    assert "liberados" in ventana.estado.text()
 
 
 def _indice_preset(ventana, nombre: str) -> int:
@@ -379,18 +402,129 @@ def test_la_ventana_produce_lo_mismo_que_la_linea_de_comandos(app, tmp_path, mon
     cli_main(["-i", str(entrada), "-o", str(tmp_path / "por_consola"), "--no-blast"])
     capsys.readouterr()  # lo que imprimió la consola no interesa acá
 
+    monkeypatch.setattr(cache_local, "raiz", lambda: tmp_path / "cache")
     v = Ventana(prefs={})
     v.v_entrada.setText(str(entrada))
-    v.v_salida.setText(str(tmp_path / "por_ventana"))
     v.v_noblast.setChecked(True)
     v.correr()
     assert v.worker.wait(120_000), "el análisis de la ventana no terminó"
     app.processEvents()  # entrega las señales que quedaron en la cola
 
-    assert paridad.comparar_carpetas(tmp_path / "por_consola", tmp_path / "por_ventana") == []
-    assert v.modelo.rowCount() == 16  # y la tabla quedó cargada
+    assert v.modelo.rowCount() == 16  # la tabla quedó cargada
     assert "10 confiables, 3 dudosas, 3 rechazadas" in v.estado.text()
+
+    # y exportando desde la ventana salen los mismos archivos que por consola
+    _exportar_a(monkeypatch, v, tmp_path / "por_ventana")
+    assert paridad.comparar_carpetas(tmp_path / "por_consola", tmp_path / "por_ventana") == []
+    v.exportado = True
     v.close()
+
+
+def _exportar_a(monkeypatch, ventana, destino, cuales=None):
+    """Aprieta 'Exportar…' respondiendo el diálogo sin abrirlo."""
+    from PySide6.QtWidgets import QDialog
+
+    class DialogoFalso:
+        DialogCode = QDialog.DialogCode
+
+        def __init__(self, *a, **k):
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def destino(self):
+            return destino
+
+        def elegidos(self):
+            return list(cuales) if cuales else list(TODOS)
+
+    monkeypatch.setattr("sanger_ui.ventana.DialogoExportar", DialogoFalso)
+    ventana.exportar()
+
+
+def test_exportar_sin_resultados_avisa(ventana, monkeypatch):
+    avisos = []
+    monkeypatch.setattr(
+        "sanger_ui.ventana.QMessageBox.information", lambda *a, **k: avisos.append(a[1])
+    )
+    ventana.exportar()
+    assert avisos == ["Todavía no hay resultados"]
+
+
+def test_exportar_escribe_lo_elegido_y_lo_recuerda(ventana, muestras, tmp_path, monkeypatch):
+    ventana.params = Parametros(entrada=tmp_path, salida=None, no_blast=True)
+    ventana.en_terminado(Resultado([], muestras, 1.0, 0.0))
+    assert not ventana.exportado  # hay algo sin guardar
+
+    destino = tmp_path / "exportado"
+    _exportar_a(monkeypatch, ventana, destino, cuales=("04", "00"))
+    assert sorted(p.name for p in destino.iterdir()) == ["00_resumen.txt", "04_resultados.csv"]
+    assert ventana.exportado
+    assert ventana.ultima_exportacion == str(destino)
+    assert ventana.preferencias_actuales()["exportacion"] == str(destino)
+    assert "2 archivos exportados" in ventana.etiqueta_exportacion.text()
+
+
+def test_avisa_antes_de_perder_resultados_sin_exportar(ventana, muestras, tmp_path, monkeypatch):
+    """Una corrida con BLAST puede costar veinte minutos: no se pierde por un clic."""
+    ventana.en_terminado(Resultado([], muestras, 1.0, 0.0))
+    preguntas = []
+
+    def responder(*a, **k):
+        preguntas.append(a[1])
+        return QMessageBox.StandardButton.No  # "no, no quiero perderlos"
+
+    monkeypatch.setattr("sanger_ui.ventana.QMessageBox.question", responder)
+    ventana.v_entrada.setText(str(tmp_path))
+    ventana.v_noblast.setChecked(True)
+    ventana.correr()
+    assert preguntas == ["Hay resultados sin exportar"]
+    assert ventana.worker is None  # no arrancó otra corrida
+
+    evento = _EventoFalso()
+    ventana.closeEvent(evento)
+    assert evento.ignorado and len(preguntas) == 2
+
+
+def test_despues_de_exportar_ya_no_pregunta(ventana, muestras, tmp_path, monkeypatch):
+    ventana.params = Parametros(entrada=tmp_path, salida=None, no_blast=True)
+    ventana.en_terminado(Resultado([], muestras, 1.0, 0.0))
+    _exportar_a(monkeypatch, ventana, tmp_path / "exportado")
+    monkeypatch.setattr(
+        "sanger_ui.ventana.QMessageBox.question",
+        lambda *a, **k: pytest.fail("no debería preguntar: ya está exportado"),
+    )
+    evento = _EventoFalso()
+    ventana.closeEvent(evento)
+    assert not evento.ignorado
+
+
+class _EventoFalso:
+    def __init__(self):
+        self.ignorado = False
+
+    def ignore(self):
+        self.ignorado = True
+
+    def accept(self):
+        pass
+
+
+def test_el_dialogo_de_exportacion_viene_todo_marcado(app, tmp_path):
+    dialogo = DialogoExportar(destino_sugerido=str(tmp_path))
+    assert dialogo.elegidos() == list(TODOS)
+    assert dialogo.destino() == tmp_path
+    dialogo.casillas["05"].setChecked(False)
+    assert "05" not in dialogo.elegidos()
+    assert dialogo.casillas["04"].text().startswith(ARCHIVOS["04"])
+    dialogo.close()
+
+
+def test_el_dialogo_sin_carpeta_no_devuelve_destino(app):
+    dialogo = DialogoExportar()
+    assert dialogo.destino() is None
+    dialogo.close()
 
 
 def test_el_worker_se_cancela(app, tmp_path):

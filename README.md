@@ -52,6 +52,12 @@ pip install -e ".[ui]"     # agrega PySide6
 python -m sanger_ui
 ```
 
+La ventana **no escribe nada mientras corre**: los informes se guardan cuando se
+aprieta "Exportar…", y son los mismos archivos que produce la línea de comandos.
+El caché de BLAST (lo que ya se le consultó a NCBI) se guarda aparte de los
+datos, en la carpeta del sistema, y es lo que permite retomar una corrida
+cortada.
+
 - [`README_clasificar_sanger.md`](README_clasificar_sanger.md): documentación
   completa: opciones, criterios, qué significa cada columna de la salida.
 - [`INSTRUCCIONES_exe.md`](INSTRUCCIONES_exe.md): cómo construir y usar el

@@ -75,6 +75,7 @@ copias.
 | Este repo | fuera de OneDrive (`%USERPROFILE%\repos\sanger-classifier`) | OneDrive pelea con los miles de archivos chicos de `.git` |
 | Build del `.exe` | `C:\Sanger` (`scripts\construir_exe.ps1`) | Mismo motivo, con los temporales de PyInstaller |
 | Preferencias de la ventana | `~/.sanger/config.json` | Tiene el mail de NCBI: nunca se versiona |
+| Caché de BLAST de la ventana | `%LOCALAPPDATA%\Sanger\cache\<hash de la entrada>` | No es un resultado: es lo que permite retomar. No escribe en las carpetas de datos (OneDrive, discos de solo lectura) |
 | Referencia de paridad | `C:\Sanger\paridad\` | Contiene resultados del ensayo: nunca al repo |
 | Los 192 `.ab1` reales | carpeta del ensayo, fuera del repo | Datos sin publicar |
 
@@ -154,6 +155,15 @@ Decisiones tomadas y validadas. No son accidentes.
 
 `clasificar_sanger.py` en la raíz es solo un punto de entrada que llama a
 `sanger.cli.main`, para que la línea de comandos histórica siga funcionando.
+
+**Un solo escritor de informes**: `io/informes.py::escribir_informes`. Lo usan
+el pipeline (línea de comandos) y la exportación de la ventana. Dos caminos de
+escritura que tienen que producir lo mismo terminan divergiendo; hay un test que
+los compara byte a byte.
+
+**La ventana no escribe informes**: corre con `salida=None` y exporta a pedido.
+El CLI no cambió: `-o` sigue siendo obligatorio y sigue escribiendo los cinco
+archivos.
 
 La ventana (`src/sanger_ui/`, desde la fase 3) es un cliente más del pipeline:
 `worker.py` lo corre en un hilo y reenvía los avisos como señales de Qt. No

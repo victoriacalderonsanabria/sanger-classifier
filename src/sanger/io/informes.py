@@ -135,6 +135,65 @@ def escribir_hits_json(ruta: Path, muestras: Iterable[Muestra]) -> None:
         json.dump(datos, fh, indent=2, ensure_ascii=False)
 
 
+ARCHIVOS = {
+    "00": "00_resumen.txt",
+    "01": "01_QC_lecturas.csv",
+    "02": "02_confiables.fasta",
+    "03": "03_dudosas.fasta",
+    "04": "04_resultados.csv",
+    "05": "05_hits_completos.json",
+}
+TODOS = tuple(ARCHIVOS)
+
+
+def escribir_informes(
+    resultado,
+    destino: Path,
+    sep: str = ";",
+    decimal_coma: bool = True,
+    cuales: Sequence[str] = TODOS,
+) -> list[Path]:
+    """
+    Escribe los informes pedidos a partir de un Resultado.
+
+    Es el ÚNICO lugar donde se escriben los informes: lo usa el pipeline cuando
+    corre por línea de comandos y también la exportación de la ventana. Dos
+    caminos de escritura que tienen que producir lo mismo terminan divergiendo.
+    """
+    destino = Path(destino)
+    destino.mkdir(parents=True, exist_ok=True)
+    escritos = []
+    for cual in cuales:
+        ruta = destino / ARCHIVOS[cual]
+        if cual == "01":
+            escribir_csv(ruta, COLUMNAS_QC, filas_qc(resultado.lecturas), sep, decimal_coma)
+        elif cual == "02":
+            escribir_fasta(ruta, resultado.del_grupo(Grupo.CONFIABLE))
+        elif cual == "03":
+            escribir_fasta(ruta, resultado.del_grupo(Grupo.DUDOSA), revisar=True)
+        elif cual == "04":
+            escribir_csv(
+                ruta, COLUMNAS_RESULTADOS, filas_resultados(resultado.muestras), sep, decimal_coma
+            )
+        elif cual == "05":
+            escribir_hits_json(ruta, resultado.muestras)
+        elif cual == "00":
+            ruta.write_text(
+                texto_resumen(
+                    resultado.lecturas,
+                    resultado.muestras,
+                    resultado.con_blast,
+                    resultado.segundos_total,
+                    resultado.segundos_blast,
+                ),
+                encoding="utf-8",
+            )
+        else:
+            raise KeyError(f"no existe el informe {cual!r}")
+        escritos.append(ruta)
+    return escritos
+
+
 def formatear_duracion(seg: float) -> str:
     seg = int(round(seg))
     return f"{seg // 60} min {seg % 60} s" if seg >= 60 else f"{seg} s"

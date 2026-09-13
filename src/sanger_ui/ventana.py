@@ -40,8 +40,10 @@ from PySide6.QtWidgets import (
 
 from sanger.config import PRESETS, Parametros, valores_de_preset
 from sanger.errores import Cancelado
+from sanger.io.informes import escribir_informes
 from sanger.modelos import Grupo, Progreso, Resultado
-from sanger_ui import avance, preferencias
+from sanger_ui import avance, cache_local, preferencias
+from sanger_ui.exportar import DialogoExportar
 from sanger_ui.modelo_tabla import COLUMNA_ACCESSION, ModeloMuestras, url_ncbi
 from sanger_ui.worker import Worker
 
@@ -108,6 +110,9 @@ class Ventana(QMainWindow):
         self.resize(1000, 700)
         self.worker: Worker | None = None
         self.resultado: Resultado | None = None
+        self.params: Parametros | None = None
+        self.exportado = True  # no hay nada que perder todavía
+        self.ultima_exportacion = ""
         self.etapa_actual = ""
         self.detalle = ""
         self.desde = time.monotonic()
@@ -123,6 +128,7 @@ class Ventana(QMainWindow):
         layout.addLayout(self._barra_botones())
         self.setCentralWidget(central)
         self._cargar_preferencias(prefs if prefs is not None else preferencias.cargar())
+        self._refrescar_cache()
         self._actualizar_botones(corriendo=False)
 
     # ---------------- armado de la interfaz ----------------
@@ -133,13 +139,24 @@ class Ventana(QMainWindow):
 
         carpetas = QFormLayout()
         self.v_entrada, fila_entrada = self._campo_carpeta("Carpeta con los cromatogramas .ab1")
-        self.v_salida, fila_salida = self._campo_carpeta("Carpeta donde guardar los resultados")
-        self.v_entrada.textChanged.connect(self._proponer_salida)
+        self.v_entrada.textChanged.connect(self._refrescar_cache)
         carpetas.addRow("Carpeta con los .ab1:", fila_entrada)
-        carpetas.addRow("Carpeta de resultados:", fila_salida)
         self.v_email = QLineEdit()
         self.v_email.setPlaceholderText("NCBI lo pide para el BLAST remoto")
         carpetas.addRow("E-mail:", self.v_email)
+
+        # El caché es invisible (vive fuera de las carpetas de datos), así que
+        # se muestra cuánto ocupa y se puede borrar desde acá.
+        fila_cache = QWidget()
+        caja = QHBoxLayout(fila_cache)
+        caja.setContentsMargins(0, 0, 0, 0)
+        self.etiqueta_cache = QLabel("")
+        self.etiqueta_cache.setStyleSheet("color: gray;")
+        self.b_limpiar_cache = QPushButton("Limpiar caché")
+        self.b_limpiar_cache.clicked.connect(self.limpiar_cache)
+        caja.addWidget(self.etiqueta_cache, 1)
+        caja.addWidget(self.b_limpiar_cache)
+        carpetas.addRow("Caché de BLAST:", fila_cache)
         layout.addLayout(carpetas)
 
         grupo_blast = QGroupBox("Búsqueda en GenBank")
@@ -251,7 +268,20 @@ class Ventana(QMainWindow):
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.tabla.doubleClicked.connect(self._doble_clic)
         layout.addWidget(self.tabla)
-        layout.addWidget(QLabel("Doble clic sobre un accession abre el registro en NCBI."))
+
+        pie = QHBoxLayout()
+        self.b_exportar = QPushButton("Exportar…")
+        self.b_exportar.clicked.connect(self.exportar)
+        self.b_abrir = QPushButton("Abrir carpeta exportada")
+        self.b_abrir.clicked.connect(self.abrir_exportado)
+        self.etiqueta_exportacion = QLabel(
+            "Doble clic sobre un accession abre el registro en NCBI."
+        )
+        self.etiqueta_exportacion.setStyleSheet("color: gray;")
+        pie.addWidget(self.b_exportar)
+        pie.addWidget(self.b_abrir)
+        pie.addWidget(self.etiqueta_exportacion, 1)
+        layout.addLayout(pie)
         return w
 
     def _barra_botones(self) -> QHBoxLayout:
@@ -260,12 +290,9 @@ class Ventana(QMainWindow):
         self.b_analizar.clicked.connect(self.correr)
         self.b_cancelar = QPushButton("Cancelar")
         self.b_cancelar.clicked.connect(self.cancelar)
-        self.b_abrir = QPushButton("Abrir carpeta de resultados")
-        self.b_abrir.clicked.connect(self.abrir_resultados)
         self.estado = QLabel("")
         barra.addWidget(self.b_analizar)
         barra.addWidget(self.b_cancelar)
-        barra.addWidget(self.b_abrir)
         barra.addWidget(self.estado, 1)
         return barra
 
@@ -312,9 +339,35 @@ class Ventana(QMainWindow):
         if carpeta:
             campo.setText(carpeta)
 
-    def _proponer_salida(self, entrada: str) -> None:
-        if entrada and not self.v_salida.text():
-            self.v_salida.setText(str(Path(entrada) / "resultados"))
+    def _refrescar_cache(self) -> None:
+        """Cuánto ocupa el caché de BLAST de esta carpeta de entrada."""
+        entrada = self.v_entrada.text().strip()
+        if not entrada:
+            self.etiqueta_cache.setText("se crea al hacer el primer BLAST")
+            self.b_limpiar_cache.setEnabled(False)
+            return
+        carpeta = cache_local.carpeta_para(entrada)
+        ocupa = cache_local.tamano(carpeta)
+        self.etiqueta_cache.setText(
+            f"{cache_local.formatear_tamano(ocupa)} · {carpeta}"
+            if ocupa
+            else f"vacío · se guardará en {carpeta}"
+        )
+        self.b_limpiar_cache.setEnabled(bool(ocupa))
+
+    def limpiar_cache(self) -> None:
+        """
+        Borra el caché de esta carpeta de entrada.
+
+        Lo único que se pierde es tiempo: la próxima corrida vuelve a consultar
+        a NCBI en vez de reusar lo ya consultado.
+        """
+        entrada = self.v_entrada.text().strip()
+        if not entrada:
+            return
+        liberado = cache_local.limpiar(cache_local.carpeta_para(entrada))
+        self._refrescar_cache()
+        self.estado.setText(f"Caché borrado: {cache_local.formatear_tamano(liberado)} liberados.")
 
     def preset_elegido(self) -> str:
         """El nombre del preset seleccionado, sin el sufijo de modificado."""
@@ -353,13 +406,19 @@ class Ventana(QMainWindow):
         self.v_preset.setItemText(indice, f"{nombre} (modificado)" if modificado else nombre)
 
     def parametros(self) -> Parametros:
-        """Lo cargado en la pestaña de configuración, como Parametros del núcleo."""
+        """
+        Lo cargado en la pestaña de configuración, como Parametros del núcleo.
+
+        `salida=None`: corriendo desde la ventana no se escribe nada al disco.
+        Los informes se generan después, con el botón Exportar. El caché de
+        BLAST sí se guarda, en su carpeta estable.
+        """
         entrada = self.v_entrada.text().strip()
-        salida = self.v_salida.text().strip() or str(Path(entrada) / "resultados")
         taxon = self.v_taxon.currentText().strip()
         return Parametros(
             entrada=entrada,
-            salida=salida,
+            salida=None,
+            carpeta_cache=cache_local.carpeta_para(entrada),
             email=self.v_email.text().strip() or None,
             largo_min=self.v_largo.value(),
             largo_min_laxo=self.v_largo_laxo.value(),
@@ -386,9 +445,14 @@ class Ventana(QMainWindow):
             )
             return
 
+        if not self._confirmar_perder_resultados("analizar de nuevo"):
+            return
+
         self.guardar_preferencias()
         self.log.clear()
         self.modelo.poner([])
+        self.resultado = None
+        self.exportado = True  # no hay nada sin exportar hasta que termine
         self.barra.setValue(0)
         self.etapa_actual, self.detalle, self.desde = "", "", time.monotonic()
         self.cronometro.start()
@@ -396,7 +460,8 @@ class Ventana(QMainWindow):
         self._actualizar_botones(corriendo=True)
         self.estado.setText("Analizando…")
 
-        self.worker = Worker(self.parametros(), self)
+        self.params = self.parametros()
+        self.worker = Worker(self.params, self)
         self.worker.progreso.connect(self.en_progreso)
         self.worker.log.connect(self.en_log)
         self.worker.terminado.connect(self.en_terminado)
@@ -438,6 +503,7 @@ class Ventana(QMainWindow):
     def en_terminado(self, resultado: Resultado) -> None:
         self.cronometro.stop()
         self.resultado = resultado
+        self.exportado = False  # hay resultados en memoria que nadie guardó
         self.modelo.poner(resultado.muestras)
         self.tabla.resizeColumnsToContents()
         self.tabs.setCurrentIndex(2)
@@ -465,14 +531,45 @@ class Ventana(QMainWindow):
         self._actualizar_botones(corriendo=False)
         if isinstance(error, Cancelado):
             self.etiqueta_etapa.setText("Cancelado.")
-            self.estado.setText("Cancelado. Lo que ya se escribió quedó en la carpeta de salida.")
+            self.estado.setText("Cancelado. El BLAST ya hecho queda en el caché para la próxima.")
             return
         self.etiqueta_etapa.setText("Terminó con error.")
         self.estado.setText("Terminó con error (ver el mensaje).")
         QMessageBox.critical(self, "El análisis no pudo terminar", str(error))
 
-    def abrir_resultados(self) -> None:
-        ruta = self.v_salida.text().strip()
+    def exportar(self) -> None:
+        """Escribe los informes elegidos, con el mismo código que la línea de comandos."""
+        if self.resultado is None:
+            QMessageBox.information(self, "Todavía no hay resultados", "Primero corré un análisis.")
+            return
+        dialogo = DialogoExportar(self, destino_sugerido=self.ultima_exportacion)
+        if dialogo.exec() != DialogoExportar.DialogCode.Accepted:
+            return
+        destino, cuales = dialogo.destino(), dialogo.elegidos()
+        if destino is None or not cuales:
+            QMessageBox.critical(
+                self, "Falta elegir", "Indicá una carpeta y al menos un archivo para exportar."
+            )
+            return
+        try:
+            escritos = escribir_informes(
+                self.resultado,
+                destino,
+                self.params.sep_csv,
+                self.params.decimal_coma,
+                cuales,
+            )
+        except OSError as e:
+            QMessageBox.critical(self, "No se pudo exportar", str(e))
+            return
+        self.exportado = True
+        self.ultima_exportacion = str(destino)
+        self.b_abrir.setEnabled(True)
+        self.etiqueta_exportacion.setText(f"{len(escritos)} archivos exportados en {destino}")
+        self.estado.setText(f"Exportado en {destino}")
+
+    def abrir_exportado(self) -> None:
+        ruta = self.ultima_exportacion
         if not ruta or not Path(ruta).exists():
             return
         if sys.platform.startswith("win"):
@@ -489,17 +586,35 @@ class Ventana(QMainWindow):
         if accession:
             QDesktopServices.openUrl(QUrl(url_ncbi(accession)))
 
+    def _confirmar_perder_resultados(self, accion: str) -> bool:
+        """
+        Avisa si hay resultados en memoria que nadie exportó.
+
+        Una corrida con BLAST puede costar veinte minutos: perderla por un clic
+        sería feo.
+        """
+        if self.resultado is None or self.exportado:
+            return True
+        respuesta = QMessageBox.question(
+            self,
+            "Hay resultados sin exportar",
+            f"Los resultados de la última corrida todavía no se guardaron.\n\n¿{accion} igual?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        return respuesta == QMessageBox.StandardButton.Yes
+
     def _actualizar_botones(self, corriendo: bool) -> None:
         self.b_analizar.setEnabled(not corriendo)
         self.b_cancelar.setEnabled(corriendo)
-        self.b_abrir.setEnabled(not corriendo and bool(self.v_salida.text().strip()))
+        self.b_exportar.setEnabled(not corriendo and self.resultado is not None)
+        self.b_abrir.setEnabled(bool(self.ultima_exportacion))
 
     # ---------------- preferencias ----------------
 
     def _cargar_preferencias(self, prefs: dict) -> None:
         self.v_email.setText(prefs.get("email", ""))
         self.v_entrada.setText(prefs.get("entrada", ""))
-        self.v_salida.setText(prefs.get("salida", ""))
+        self.ultima_exportacion = prefs.get("exportacion", "")
         if prefs.get("db"):
             self.v_db.setCurrentText(prefs["db"])
         if prefs.get("taxon"):
@@ -512,7 +627,7 @@ class Ventana(QMainWindow):
         return {
             "email": self.v_email.text().strip(),
             "entrada": self.v_entrada.text().strip(),
-            "salida": self.v_salida.text().strip(),
+            "exportacion": self.ultima_exportacion,
             "preset": self.preset_elegido(),
             "db": self.v_db.currentText().strip(),
             "taxon": self.v_taxon.currentText().strip(),
@@ -522,6 +637,9 @@ class Ventana(QMainWindow):
         preferencias.guardar(self.preferencias_actuales())
 
     def closeEvent(self, evento) -> None:
+        if not self._confirmar_perder_resultados("Cerrar"):
+            evento.ignore()
+            return
         if self.worker and self.worker.isRunning():
             respuesta = QMessageBox.question(
                 self,

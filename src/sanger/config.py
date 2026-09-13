@@ -33,7 +33,13 @@ class Parametros:
     """Todo lo que define una corrida. Los valores por defecto son los validados."""
 
     entrada: Path
-    salida: Path = Path("resultados")
+    # None = no escribir informes (la ventana exporta a pedido; el CLI siempre
+    # pasa una carpeta y escribe los cinco archivos, como siempre)
+    salida: Path | None = Path("resultados")
+    # dónde se guarda el caché de BLAST. Por defecto, salida/blast_xml, como
+    # hasta ahora. El caché no es un resultado: es lo que permite retomar una
+    # corrida cortada sin volver a pagar el BLAST, así que puede vivir aparte.
+    carpeta_cache: Path | None = None
     email: str | None = None
 
     # Criterio estándar (grupo CONFIABLE). El amplicón del ensayo mide ~260 pb:
@@ -69,7 +75,15 @@ class Parametros:
         # texto sale idéntico venga el valor de la consola o de la ventana.
         # (object.__setattr__ es la forma de asignar dentro de un frozen.)
         object.__setattr__(self, "entrada", Path(self.entrada))
-        object.__setattr__(self, "salida", Path(self.salida))
+        if self.salida is not None:
+            object.__setattr__(self, "salida", Path(self.salida))
+        if self.carpeta_cache is not None:
+            object.__setattr__(self, "carpeta_cache", Path(self.carpeta_cache))
+        elif self.salida is None and not self.no_blast:
+            raise ValueError(
+                "sin carpeta de salida hay que indicar carpeta_cache: el caché de "
+                "BLAST es lo que permite retomar una corrida cortada"
+            )
         for nombre in _ENTEROS:
             object.__setattr__(self, nombre, int(getattr(self, nombre)))
         for nombre in _DECIMALES:
@@ -82,6 +96,17 @@ class Parametros:
     def con(self, **cambios) -> "Parametros":
         """Una copia con algunos valores cambiados (no se modifica la original)."""
         return replace(self, **cambios)
+
+    @property
+    def cache(self) -> Path | None:
+        """Dónde va el caché de BLAST: donde se pidió, o salida/blast_xml."""
+        if self.carpeta_cache is not None:
+            return self.carpeta_cache
+        return self.salida / "blast_xml" if self.salida is not None else None
+
+    @property
+    def escribe_informes(self) -> bool:
+        return self.salida is not None
 
     @property
     def sep_csv(self) -> str:
