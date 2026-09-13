@@ -3,6 +3,7 @@
 import csv
 import json
 
+from sanger.config import Parametros
 from sanger.io.informes import (
     COLUMNAS_RESULTADOS,
     escribir_csv,
@@ -116,3 +117,30 @@ def test_resumen_cuenta_interpretaciones_sin_el_detalle():
     assert texto.endswith(
         "Tiempo total: 1 min 35 s  (BLAST: 1 min 0 s; QC, consenso e informes: 35 s)"
     )
+
+
+def test_el_resumen_deja_constancia_de_los_umbrales_usados():
+    # los umbrales dejaron de ser siempre los mismos (cada equipo puede guardar
+    # su Default): un informe que no dice con cuáles salió no se puede comparar
+    p = Parametros(entrada=".", largo_min=250, ident_min=99.0, db="mito", taxon="Insecta[Organism]")
+    muestras = _muestras()
+    muestras[1].interpretacion = "identidad_baja (91.2% < 99.0%): especie no representada"
+    texto = texto_resumen([], muestras, True, 95.0, 60.0, p)
+    assert "Criterios usados en esta corrida:" in texto
+    assert "largo >= 250 pb tras recorte Q20" in texto
+    assert "identidad >= 99.0 %" in texto and "base mito" in texto
+    assert "Restringido a: Insecta[Organism]" in texto
+
+
+def test_los_umbrales_del_resumen_salen_de_los_parametros_de_verdad():
+    texto = texto_resumen([], [], False, 1.0, 0.0, Parametros(entrada="."))
+    assert "largo >= 100 pb" in texto and "Q media >= 25.0" in texto
+    assert "al menos 80.0 % de bases Q>=20" in texto
+    assert "solapamiento mínimo 50 pb" in texto
+    # sin BLAST no se informan criterios de BLAST: no se usaron
+    assert "BLAST: base" not in texto and "Restringido a" not in texto
+
+
+def test_un_resultado_sin_parametros_no_rompe_el_resumen():
+    # los Resultado armados a mano (tests, resultados viejos) no traen params
+    assert "Criterios usados" not in texto_resumen([], [], False, 1.0, 0.0)

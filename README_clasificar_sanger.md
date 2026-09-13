@@ -136,7 +136,7 @@ punto como decimal, sin BOM).
 
 | Archivo | Contenido |
 |---|---|
-| `00_resumen.txt` | Conteos por grupo y por resultado de BLAST, y tiempo de ejecución (total, BLAST, resto). |
+| `00_resumen.txt` | Conteos por grupo y por resultado de BLAST, tiempo de ejecución (total, BLAST, resto) y **con qué umbrales salió esta corrida** (largos mínimos, Q media, % Q20, solapamiento, base de datos, identidad y cobertura). Los umbrales ya no son siempre los mismos: quedan escritos para poder comparar dos informes de fechas distintas. |
 | `01_QC_lecturas.csv` | Una fila por cromatograma: largo crudo, Q media cruda, bases ambiguas, bases con Q ≥ 20, largo tras recorte estricto y laxo, y `senal` (BUENA / PARCIAL / SIN_SEÑAL). Es la tabla que justifica cada rechazo. |
 | `02_confiables.fasta` | Secuencias del grupo CONFIABLE, orientadas como forward. |
 | `03_dudosas.fasta` | Secuencias del grupo DUDOSA, con el motivo en la descripción, listas para revisar o pegar en BLAST web. |

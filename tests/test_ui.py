@@ -199,18 +199,18 @@ def test_el_perfil_dice_que_es_una_sugerencia(ventana):
 
 def test_el_perfil_principal_es_el_del_laboratorio(ventana):
     # el programa se usa sobre todo para Sanger de virus e ingestas de mosquitos
-    assert ventana.preset_elegido() == "Default/General"
+    assert ventana.preset_elegido() == "Default"
     assert ventana.valores_cargados()["largo_min"] == 100  # amplicón corto, ~260 pb
 
 
 def test_al_abrir_el_preset_es_default_sin_marca(ventana):
-    assert ventana.v_preset.currentText() == "Default/General"
-    assert ventana.preset_elegido() == "Default/General"
+    assert ventana.v_preset.currentText() == "Default"
+    assert ventana.preset_elegido() == "Default"
 
 
 def test_volver_a_default_repone_todos_los_valores(ventana):
     ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
-    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "Default/General"))
+    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "Default"))
     assert ventana.valores_cargados() == {
         "largo_min": 100,
         "largo_min_laxo": 60,
@@ -222,15 +222,15 @@ def test_volver_a_default_repone_todos_los_valores(ventana):
 
 def test_tocar_un_umbral_marca_el_preset_como_modificado(ventana):
     ventana.v_largo.setValue(250)
-    assert ventana.v_preset.currentText() == "Default/General (modificado)"
-    assert ventana.preset_elegido() == "Default/General"  # el preset elegido no cambia
+    assert ventana.v_preset.currentText() == "Default (modificado)"
+    assert ventana.preset_elegido() == "Default"  # el preset elegido no cambia
 
 
 def test_la_marca_se_va_sola_si_se_vuelve_al_valor_del_preset(ventana):
     ventana.v_ident.setValue(95.0)
     assert "(modificado)" in ventana.v_preset.currentText()
     ventana.v_ident.setValue(97.0)
-    assert ventana.v_preset.currentText() == "Default/General"
+    assert ventana.v_preset.currentText() == "Default"
 
 
 def test_la_marca_vale_para_cualquier_preset(ventana):
@@ -251,6 +251,57 @@ def test_se_recuerda_el_preset_sin_el_sufijo(ventana):
     ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
     ventana.v_lote.setValue(20)  # queda modificado
     assert ventana.preferencias_actuales()["preset"] == "16S bacteriano"
+
+
+def test_guardar_el_default_propio_y_volver_al_del_programa(ventana):
+    """
+    Otro equipo de investigación puede dejar sus criterios ya puestos.
+
+    Es un botón y no un archivo de configuración a mano: quien usa el programa
+    no programa. Y tiene vuelta atrás, porque un Default guardado sin querer
+    cambiaría todas las corridas que vengan después.
+    """
+    ventana.v_largo.setValue(250)
+    ventana.v_ident.setValue(99.0)
+    assert ventana.v_preset.currentText() == "Default (modificado)"
+
+    ventana.guardar_como_default()
+    # deja de estar "modificado": esos valores SON el Default de acá en más
+    assert ventana.v_preset.currentText() == "Default"
+    assert ventana.valores_cargados()["largo_min"] == 250
+    assert "Default de esta computadora" in ventana.estado.text()
+    assert "Default propio" in ventana.etiqueta_preset.text()  # queda dicho en pantalla
+
+    # y los otros perfiles pasan a armarse sobre eso
+    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "ITS hongos"))
+    assert ventana.v_largo.value() == 250
+
+    ventana.restaurar_default_programa()
+    assert ventana.v_preset.currentText() == "Default"
+    assert ventana.valores_cargados()["largo_min"] == 100
+    assert "Default propio" not in ventana.etiqueta_preset.text()
+
+
+def test_el_default_propio_sobrevive_al_cierre(app, tmp_path, monkeypatch):
+    archivo = tmp_path / "config.json"
+    monkeypatch.setattr(preferencias, "ARCHIVO", archivo)
+    monkeypatch.setattr(cache_local, "raiz", lambda: tmp_path / "cache")
+    v = Ventana(prefs={})
+    v.v_largo.setValue(250)
+    v.guardar_como_default()
+    v.close()
+
+    otra = Ventana(prefs=preferencias.cargar(archivo))
+    assert otra.valores_cargados()["largo_min"] == 250
+    assert otra.v_preset.currentText() == "Default"  # es el Default, no algo modificado
+    otra.close()
+
+
+def test_la_corrida_queda_con_los_umbrales_que_se_usaron(ventana, tmp_path):
+    # lo que se guarde después tiene que decir con qué criterios salió
+    ventana.v_entrada.setText(str(tmp_path))
+    ventana.v_largo.setValue(250)
+    assert ventana.parametros().largo_min == 250
 
 
 def test_analizar_sin_carpeta_no_arranca(ventana, monkeypatch):
@@ -391,6 +442,15 @@ def test_preferencias_rotas_no_frenan_el_programa(tmp_path):
     roto.write_text("{ esto no es json", encoding="utf-8")
     assert preferencias.cargar(roto) == {}
     assert preferencias.cargar(tmp_path / "no_existe.json") == {}
+
+
+def test_el_default_propio_se_guarda_como_diccionario(tmp_path):
+    archivo = tmp_path / "config.json"
+    preferencias.guardar({"email": "a@b.c", "default": {"largo_min": 250}}, archivo)
+    assert preferencias.cargar(archivo)["default"] == {"largo_min": 250}
+    # y lo que no sea un diccionario se descarta, como cualquier otra preferencia rota
+    preferencias.guardar({"default": "no es un diccionario"}, archivo)
+    assert "default" not in preferencias.cargar(archivo)
 
 
 # ----------------------------------------------------------------------------

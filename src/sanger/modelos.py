@@ -11,6 +11,8 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 
+from sanger.config import Parametros
+
 # Separador usado DENTRO de un campo de texto (listas de archivos, motivos).
 # Nunca debe coincidir con el separador de columnas del CSV (';' o ','), así el
 # archivo no se rompe si alguien lo vuelve a separar en columnas a mano.
@@ -153,6 +155,9 @@ class Resultado:
     segundos_total: float = 0.0
     segundos_blast: float = 0.0
     con_blast: bool = False  # si no, el resumen no lleva los conteos de BLAST
+    # Con qué criterios se obtuvo. Va al resumen: si alguien cambia sus valores
+    # por defecto, tiene que quedar registrado con cuáles salió cada corrida.
+    params: Parametros | None = None
 
     def del_grupo(self, grupo: Grupo) -> list[Muestra]:
         return [m for m in self.muestras if m.grupo == grupo]

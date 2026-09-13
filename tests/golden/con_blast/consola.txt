@@ -71,4 +71,11 @@ BLAST CONFIABLE: ambiguo=2, cobertura_baja=1, identidad_baja=1, identificado=3, 
 BLAST DUDOSA: humano=1, identidad_baja=1, identificado=1
 Tiempo total: 0 s  (BLAST: 0 s; QC, consenso e informes: 0 s)
 
+Criterios usados en esta corrida:
+  CONFIABLE: largo >= 100 pb tras recorte Q20, Q media >= 25.0 y al menos 80.0 % de bases Q>=20
+  DUDOSA: largo >= 60 pb tras recorte Q15, al menos 30 bases Q>=20
+  Consenso F+R: solapamiento mínimo 50 pb
+  BLAST: base nt, identidad >= 97.0 %, cobertura >= 80.0 %, de a 50 secuencias por envío
+  Restringido a: (sin filtro taxonómico)
+
 Listo. Resultados en <SALIDA>
