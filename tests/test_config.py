@@ -5,7 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from sanger.config import CAMPOS_PRESET, PRESETS, Parametros, aplicar_preset, valores_de_preset
+from sanger.config import (
+    CAMPOS_PRESET,
+    PRESET_DEFAULT,
+    PRESETS,
+    Parametros,
+    aplicar_preset,
+    normalizar_valores,
+    valores_de_preset,
+)
 
 
 def test_valores_por_defecto_son_los_validados():
@@ -110,6 +118,49 @@ def test_los_presets_solo_tocan_campos_que_se_ven_en_la_ventana():
     # que está activo ni que lo modificó
     for p in PRESETS:
         assert set(p.cambios) <= set(CAMPOS_PRESET), p.nombre
+
+
+# ----------------------------------------------------------------------------
+# El Default propio: otro equipo deja guardados sus criterios de partida
+# ----------------------------------------------------------------------------
+
+
+def test_un_default_propio_reemplaza_a_los_valores_del_programa():
+    propios = {"largo_min": 250, "largo_min_laxo": 80, "ident_min": 99.0, "lote": 20, "db": "mito"}
+    assert valores_de_preset(PRESET_DEFAULT, propios) == propios
+
+
+def test_un_default_propio_incompleto_se_completa_con_los_del_programa():
+    valores = valores_de_preset(PRESET_DEFAULT, {"ident_min": 99.0})
+    assert valores["ident_min"] == 99.0
+    assert (valores["largo_min"], valores["db"]) == (100, "nt")
+
+
+def test_los_otros_perfiles_se_arman_sobre_el_default_propio():
+    # ITS solo cambia la base: el largo tiene que seguir siendo el del equipo y
+    # no el del programa, o el perfil le pisaría criterios que eligió a propósito
+    valores = valores_de_preset("ITS hongos", {"largo_min": 250})
+    assert (valores["largo_min"], valores["db"]) == (250, "ITS_RefSeq_Fungi")
+
+
+def test_un_perfil_le_gana_al_default_propio_en_lo_que_toca():
+    valores = valores_de_preset("16S bacteriano", {"largo_min": 250, "ident_min": 99.0})
+    assert (valores["largo_min"], valores["ident_min"]) == (300, 98.7)
+
+
+def test_un_default_propio_roto_se_ignora_y_el_programa_sigue():
+    # el archivo de preferencias se puede editar a mano: que esté mal no puede
+    # impedir que el programa abra
+    for basura in (None, "300", 7, {"largo_min": "trescientos"}, {"db": 5}):
+        assert normalizar_valores(basura) == {}
+    assert valores_de_preset(PRESET_DEFAULT, {"largo_min": "x"}) == valores_de_preset(
+        PRESET_DEFAULT
+    )
+
+
+def test_el_default_propio_solo_guarda_campos_que_se_ven():
+    # no puede cambiar nada que la ventana no muestre: nadie sabría que está puesto
+    assert set(normalizar_valores({"largo_min": 250, "cob_min": 10.0})) == set(CAMPOS_PRESET)
 
 
 def test_preset_inexistente():

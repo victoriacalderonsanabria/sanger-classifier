@@ -15,6 +15,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from sanger.config import Parametros
 from sanger.modelos import SEP_INTERNO, Grupo, Lectura, Muestra, Senal
 
 COLUMNAS_QC = [
@@ -224,6 +225,7 @@ def escribir_informes(
                     resultado.con_blast,
                     resultado.segundos_total,
                     resultado.segundos_blast,
+                    resultado.params,
                 ),
                 encoding="utf-8",
             )
@@ -238,12 +240,45 @@ def formatear_duracion(seg: float) -> str:
     return f"{seg // 60} min {seg % 60} s" if seg >= 60 else f"{seg} s"
 
 
+def lineas_criterios(params: Parametros, con_blast: bool) -> list[str]:
+    """
+    Con qué umbrales salió esta corrida.
+
+    Existe porque los umbrales dejaron de ser siempre los mismos: cada equipo
+    puede dejar guardados los suyos como Default, y los perfiles cargan valores
+    distintos. Un informe que no dice con qué criterios se armó no se puede
+    comparar con otro seis meses después.
+
+    Los números salen de `params`, no están escritos a mano: si mañana cambia un
+    umbral, el resumen lo dice solo.
+    """
+    lineas = [
+        "",
+        "Criterios usados en esta corrida:",
+        f"  CONFIABLE: largo >= {params.largo_min} pb tras recorte Q{params.umbral_q}, "
+        f"Q media >= {params.q_media_min} y al menos {params.pct_q20_min} % "
+        f"de bases Q>={params.umbral_q}",
+        f"  DUDOSA: largo >= {params.largo_min_laxo} pb tras recorte "
+        f"Q{params.umbral_q_laxo}, al menos {params.min_bases_q20} bases "
+        f"Q>={params.umbral_q}",
+        f"  Consenso F+R: solapamiento mínimo {params.min_solap} pb",
+    ]
+    if con_blast:
+        lineas.append(
+            f"  BLAST: base {params.db}, identidad >= {params.ident_min} %, "
+            f"cobertura >= {params.cob_min} %, de a {params.lote} secuencias por envío"
+        )
+        lineas.append(f"  Restringido a: {params.taxon or '(sin filtro taxonómico)'}")
+    return lineas
+
+
 def texto_resumen(
     lecturas: Sequence[Lectura],
     muestras: Sequence[Muestra],
     con_blast: bool,
     segundos_total: float,
     segundos_blast: float,
+    params: Parametros | None = None,
 ) -> str:
     """El contenido de 00_resumen.txt: conteos por grupo, por resultado de BLAST y tiempos."""
     confiables = [m for m in muestras if m.grupo == Grupo.CONFIABLE]
@@ -273,4 +308,6 @@ def texto_resumen(
         f"(BLAST: {formatear_duracion(segundos_blast)}; "
         f"QC, consenso e informes: {formatear_duracion(segundos_total - segundos_blast)})"
     )
+    if params is not None:
+        resumen += lineas_criterios(params, con_blast)
     return "\n".join(resumen)

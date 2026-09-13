@@ -18,11 +18,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6", reason="la ventana necesita PySide6 (pip install -e .[ui])")
 
 from PySide6.QtCore import Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
+from PySide6.QtWidgets import QApplication, QFormLayout, QMessageBox  # noqa: E402
 
 import paridad  # noqa: E402
 from sanger.cli import main as cli_main  # noqa: E402
-from sanger.config import PRESETS, Parametros  # noqa: E402
+from sanger.config import AVISO_PRESETS, PRESETS, Parametros  # noqa: E402
 from sanger.errores import Cancelado  # noqa: E402
 from sanger.io.informes import ARCHIVO_FILTRADO, ARCHIVOS, TODOS  # noqa: E402
 from sanger.modelos import Grupo, Hit, Muestra, Progreso, Resultado  # noqa: E402
@@ -182,6 +182,54 @@ def test_el_preset_carga_los_umbrales(ventana):
     assert ventana.v_db.currentText() == "16S_ribosomal_RNA"
 
 
+def test_el_perfil_dice_que_es_una_sugerencia(ventana):
+    """
+    Un umbral de identidad no define una especie. El combo no puede dar a
+    entender que sí, así que el aviso general está siempre a la vista
+    (decisión de Victoria, 13/09/2026).
+    """
+    assert "no criterios de identificación taxonómica" in ventana.etiqueta_preset.text()
+    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
+    assert AVISO_PRESETS in ventana.etiqueta_preset.text()  # no se pierde al elegir uno
+
+
+def test_la_explicacion_del_perfil_esta_a_mano_pero_no_ocupa_lugar(ventana):
+    """
+    La explicación de cada perfil no está fija: ocupaba media pestaña. Se ve
+    pasando el mouse por el combo, y el botón '?' la deja fija para leerla.
+    """
+    # isVisibleTo y no isVisible: la ventana de los tests nunca se muestra
+    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
+    assert not ventana.detalle_preset.isVisibleTo(ventana)  # no ocupa espacio
+
+    texto = ventana.v_preset.toolTip()  # el globo la trae igual
+    assert "identidad sugerida de 98,7 %" in texto
+    assert "NO es un umbral que defina especie" in texto
+
+    ventana.b_info_preset.setChecked(True)
+    assert ventana.detalle_preset.isVisibleTo(ventana)
+    assert ventana.detalle_preset.text() == texto
+    ventana.b_info_preset.setChecked(False)
+    assert not ventana.detalle_preset.isVisibleTo(ventana)
+
+
+def test_las_lineas_de_ayuda_van_pegadas_a_lo_que_explican(ventana):
+    # el interlineado de formulario separaba tanto el perfil, su aviso y los
+    # botones que no se leían como una sola cosa (Victoria, 13/09/2026)
+    form = ventana.etiqueta_preset.parentWidget().layout()
+    assert form.verticalSpacing() <= 6
+    for w in (ventana.etiqueta_preset, ventana.detalle_preset):
+        _, rol = form.getWidgetPosition(w)
+        # sin etiqueta a la izquierda: ocupan el ancho entero
+        assert rol == QFormLayout.ItemRole.SpanningRole
+
+
+def test_el_perfil_principal_es_el_del_laboratorio(ventana):
+    # el programa se usa sobre todo para Sanger de virus e ingestas de mosquitos
+    assert ventana.preset_elegido() == "Default"
+    assert ventana.valores_cargados()["largo_min"] == 100  # amplicón corto, ~260 pb
+
+
 def test_al_abrir_el_preset_es_default_sin_marca(ventana):
     assert ventana.v_preset.currentText() == "Default"
     assert ventana.preset_elegido() == "Default"
@@ -230,6 +278,57 @@ def test_se_recuerda_el_preset_sin_el_sufijo(ventana):
     ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "16S bacteriano"))
     ventana.v_lote.setValue(20)  # queda modificado
     assert ventana.preferencias_actuales()["preset"] == "16S bacteriano"
+
+
+def test_guardar_el_default_propio_y_volver_al_del_programa(ventana):
+    """
+    Otro equipo de investigación puede dejar sus criterios ya puestos.
+
+    Es un botón y no un archivo de configuración a mano: quien usa el programa
+    no programa. Y tiene vuelta atrás, porque un Default guardado sin querer
+    cambiaría todas las corridas que vengan después.
+    """
+    ventana.v_largo.setValue(250)
+    ventana.v_ident.setValue(99.0)
+    assert ventana.v_preset.currentText() == "Default (modificado)"
+
+    ventana.guardar_como_default()
+    # deja de estar "modificado": esos valores SON el Default de acá en más
+    assert ventana.v_preset.currentText() == "Default"
+    assert ventana.valores_cargados()["largo_min"] == 250
+    assert "Default de esta computadora" in ventana.estado.text()
+    assert "Default propio" in ventana.detalle_preset.text()  # queda dicho, en el '?'
+
+    # y los otros perfiles pasan a armarse sobre eso
+    ventana.v_preset.setCurrentIndex(_indice_preset(ventana, "ITS hongos"))
+    assert ventana.v_largo.value() == 250
+
+    ventana.restaurar_default_programa()
+    assert ventana.v_preset.currentText() == "Default"
+    assert ventana.valores_cargados()["largo_min"] == 100
+    assert "Default propio" not in ventana.detalle_preset.text()
+
+
+def test_el_default_propio_sobrevive_al_cierre(app, tmp_path, monkeypatch):
+    archivo = tmp_path / "config.json"
+    monkeypatch.setattr(preferencias, "ARCHIVO", archivo)
+    monkeypatch.setattr(cache_local, "raiz", lambda: tmp_path / "cache")
+    v = Ventana(prefs={})
+    v.v_largo.setValue(250)
+    v.guardar_como_default()
+    v.close()
+
+    otra = Ventana(prefs=preferencias.cargar(archivo))
+    assert otra.valores_cargados()["largo_min"] == 250
+    assert otra.v_preset.currentText() == "Default"  # es el Default, no algo modificado
+    otra.close()
+
+
+def test_la_corrida_queda_con_los_umbrales_que_se_usaron(ventana, tmp_path):
+    # lo que se guarde después tiene que decir con qué criterios salió
+    ventana.v_entrada.setText(str(tmp_path))
+    ventana.v_largo.setValue(250)
+    assert ventana.parametros().largo_min == 250
 
 
 def test_analizar_sin_carpeta_no_arranca(ventana, monkeypatch):
@@ -370,6 +469,15 @@ def test_preferencias_rotas_no_frenan_el_programa(tmp_path):
     roto.write_text("{ esto no es json", encoding="utf-8")
     assert preferencias.cargar(roto) == {}
     assert preferencias.cargar(tmp_path / "no_existe.json") == {}
+
+
+def test_el_default_propio_se_guarda_como_diccionario(tmp_path):
+    archivo = tmp_path / "config.json"
+    preferencias.guardar({"email": "a@b.c", "default": {"largo_min": 250}}, archivo)
+    assert preferencias.cargar(archivo)["default"] == {"largo_min": 250}
+    # y lo que no sea un diccionario se descarta, como cualquier otra preferencia rota
+    preferencias.guardar({"default": "no es un diccionario"}, archivo)
+    assert "default" not in preferencias.cargar(archivo)
 
 
 # ----------------------------------------------------------------------------

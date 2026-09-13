@@ -121,40 +121,60 @@ class Parametros:
 
 @dataclass(frozen=True)
 class Preset:
-    """Un conjunto de valores pensado para un marcador concreto."""
+    """Un punto de partida sugerido para un marcador. No es una regla."""
 
     nombre: str
     descripcion: str
     cambios: dict
 
 
-# Los valores salen de README_clasificar_sanger.md, que es la documentación
-# revisada del pipeline; no son invenciones. PENDIENTE: que Victoria los
-# confirme antes de darlos por buenos.
+# QUÉ SON Y QUÉ NO SON (decisión de Victoria, 13/09/2026)
 #
-# Los valores POR DEFECTO (sin preset) son los del ensayo de ingestas: amplicón
-# corto de ~260 pb, por eso largo mínimo 100 y no 300.
+# Son perfiles ORIENTATIVOS: cargan valores razonables en los campos para no
+# arrancar de cero con cada marcador, y después se ajustan a mano. No son
+# criterios de identificación taxonómica. En particular, el 98,7 % de identidad
+# del 16S es un valor SUGERIDO y de uso frecuente en la literatura, no un
+# umbral que defina una especie: eso depende del gen, del grupo y del contexto
+# del ensayo.
+#
+# El perfil principal es Default: el programa está pensado sobre todo
+# para el laboratorio (Sanger de virus e identificación de ingestas de
+# mosquitos), y esos valores son los validados con el ensayo de ingestas
+# (amplicón corto de ~260 pb; por eso largo mínimo 100 y no 300).
+#
+# Los valores de los otros perfiles salen de README_clasificar_sanger.md.
+PRESET_DEFAULT = "Default"
+
 PRESETS = (
     Preset(
-        "Default",
-        "Los valores por defecto del pipeline, validados con el ensayo de ingestas.",
+        PRESET_DEFAULT,
+        "La configuración habitual del programa, validada con el ensayo de ingestas "
+        "(amplicones de 200–400 pb). Es el punto de partida para el trabajo del laboratorio.",
         {},
     ),
     Preset(
         "COI Folmer (~650 pb)",
-        "Amplicón largo: se sube el largo mínimo a 300 pb.",
+        "Amplicón largo: se sugiere subir el largo mínimo a 300 pb. Ajustalo según "
+        "cuánta secuencia útil deje tu corrida.",
         {"largo_min": 300},
     ),
     Preset(
         "16S bacteriano",
-        "Base curada de 16S e identidad 98,7 %, el corte habitual para bacterias.",
+        "Base curada de 16S y una identidad sugerida de 98,7 %, un valor de uso frecuente "
+        "en la literatura. NO es un umbral que defina especie: tomalo como punto de partida "
+        "y decidí con el contexto del ensayo.",
         {"largo_min": 300, "ident_min": 98.7, "db": "16S_ribosomal_RNA"},
     ),
     Preset(
         "ITS hongos",
-        "Base de ITS de hongos de RefSeq.",
+        "Base de ITS de hongos de RefSeq; el resto de los valores queda como estaba.",
         {"db": "ITS_RefSeq_Fungi"},
     ),
+)
+
+AVISO_PRESETS = (
+    "Los perfiles son sugerencias de configuración, no criterios de identificación "
+    "taxonómica: cargan valores de partida que después conviene ajustar al ensayo."
 )
 
 
@@ -175,7 +195,41 @@ def aplicar_preset(params: Parametros, nombre: str) -> Parametros:
 CAMPOS_PRESET = ("largo_min", "largo_min_laxo", "ident_min", "lote", "db")
 
 
-def valores_de_preset(nombre: str) -> dict:
-    """Qué valores deja ese preset en los campos que se muestran."""
-    p = aplicar_preset(Parametros(entrada="."), nombre)
+def normalizar_valores(valores) -> dict:
+    """
+    Deja un juego completo de valores de perfil a partir de lo que venga.
+
+    Lo que llega puede estar incompleto o directamente mal (sale de un archivo
+    de preferencias que alguien puede editar a mano). Lo que falta se completa
+    con los valores del programa; si algo no se puede interpretar, se devuelve
+    vacío y el programa sigue con su Default de siempre: una preferencia rota
+    no puede impedir que el programa arranque.
+    """
+    if not isinstance(valores, dict):
+        return {}
+    limpios = {k: v for k, v in valores.items() if k in CAMPOS_PRESET}
+    if not isinstance(limpios.get("db", ""), str):
+        return {}
+    try:
+        p = Parametros(entrada=".").con(**limpios)
+    except (TypeError, ValueError):
+        return {}
+    return {campo: getattr(p, campo) for campo in CAMPOS_PRESET}
+
+
+def valores_de_preset(nombre: str, propios: dict | None = None) -> dict:
+    """
+    Qué valores deja ese perfil en los campos que se muestran.
+
+    `propios` es el Default que se guardó en esta computadora (otro equipo de
+    investigación puede tener criterios distintos a los del laboratorio). Pasa a
+    ser la base de todos los perfiles, no solo del Default: los demás perfiles
+    son unos pocos cambios sobre la configuración de base, así que lo que un
+    perfil no toca tiene que seguir siendo lo que el equipo dejó puesto.
+    """
+    base = Parametros(entrada=".")
+    propios = normalizar_valores(propios)
+    if propios:
+        base = base.con(**propios)
+    p = base.con(**preset(nombre).cambios)
     return {campo: getattr(p, campo) for campo in CAMPOS_PRESET}

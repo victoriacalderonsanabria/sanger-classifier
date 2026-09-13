@@ -238,10 +238,10 @@ def ejecutar(
 
     # el tiempo se mide donde lo medía el original: con 04 y 05 ya escritos
     t_total = time.time() - t_inicio
-    resultado = Resultado(lecturas, muestras, t_total, t_blast, con_blast)
+    resultado = Resultado(lecturas, muestras, t_total, t_blast, con_blast, params)
     _escribir(params, resultado, ("00",))
 
-    texto = texto_resumen(lecturas, muestras, con_blast, t_total, t_blast)
+    texto = texto_resumen(lecturas, muestras, con_blast, t_total, t_blast, params)
     if params.escribe_informes:
         log.info("listo en %.0f s; resultados en %s", t_total, salida.resolve())
         cierre = f"\n\nListo. Resultados en {salida.resolve()}"

@@ -40,11 +40,34 @@ abrir). La ventana tiene tres pestañas.
    final se exporta lo que se quiera guardar (ver más abajo).
 2. **E-mail**: cualquiera propio. NCBI lo pide para el BLAST remoto. Queda
    guardado para la próxima vez, en tu computadora (`~/.sanger/config.json`).
-3. **Preset**: carga de una los umbrales típicos de un marcador (COI Folmer,
-   16S bacteriano, ITS de hongos). **Default** son los valores por defecto del
-   pipeline, los validados con el ensayo de ingestas. Después de elegir uno se
-   puede seguir ajustando a mano: si algún valor deja de ser el del preset, el
-   combo lo avisa con `(modificado)`.
+3. **Perfil**: carga de una los valores típicos de un marcador.
+   **Default** es la configuración habitual del programa, la validada
+   con el ensayo de ingestas, y es la que conviene usar para el trabajo del
+   laboratorio (Sanger de virus e identificación de ingestas). Los otros
+   —COI Folmer, 16S bacteriano, ITS de hongos— son **puntos de partida
+   sugeridos**, no criterios de identificación: después de elegir uno se sigue
+   ajustando a mano, y si algún valor deja de ser el del perfil, el combo lo
+   avisa con `(modificado)`.
+
+   Para saber qué es cada perfil y de dónde salen sus valores: pasá el mouse
+   por encima del combo, o apretá el botón **?** que tiene al lado para dejar
+   la explicación fija mientras la leés.
+
+   > El 98,7 % de identidad del perfil de 16S es un valor **sugerido**, de uso
+   > frecuente en la literatura, **no un umbral que defina una especie**: eso
+   > depende del gen, del grupo y del contexto del ensayo.
+
+   **Si tu equipo trabaja con otros criterios**, no hace falta cargarlos en cada
+   corrida: dejá los valores como los querés y apretá **"Guardar estos valores
+   como mi Default"**. A partir de ahí el programa abre con esos, y los demás
+   perfiles se arman encima de ellos (ITS, por ejemplo, cambia solo la base de
+   datos y respeta tus largos). Se guarda en tu computadora, en
+   `~/.sanger/config.json`: no afecta a nadie más. **"Volver al Default del
+   programa"** repone los valores validados con el ensayo de ingestas.
+
+   Los umbrales con los que salió cada corrida quedan escritos al final de
+   `00_resumen.txt`, así un informe de hoy se puede comparar con uno de hace
+   seis meses.
 4. **Base de datos**: dejar `nt` salvo indicación contraria. Para marcadores
    mitocondriales (COI, cytb) `mito` es bastante más rápida.
 5. **Restringir a**: opcional. `Vertebrata[Organism]` si se buscan hospedadores

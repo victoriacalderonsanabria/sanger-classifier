@@ -3,4 +3,9 @@ Muestras: 16
   CONFIABLE:   10  (consenso F+R: 3)
   DUDOSA:      3
   RECHAZADA:   3
-Tiempo total: 1 s  (BLAST: 0 s; QC, consenso e informes: 1 s)
+Tiempo total: 0 s  (BLAST: 0 s; QC, consenso e informes: 0 s)
+
+Criterios usados en esta corrida:
+  CONFIABLE: largo >= 100 pb tras recorte Q20, Q media >= 25.0 y al menos 80.0 % de bases Q>=20
+  DUDOSA: largo >= 60 pb tras recorte Q15, al menos 30 bases Q>=20
+  Consenso F+R: solapamiento mínimo 50 pb

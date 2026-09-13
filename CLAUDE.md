@@ -129,10 +129,20 @@ El comando exacto está en el `README.md`.
 Si la paridad falla, el cambio está mal, **salvo** que se esté cambiando la
 salida a propósito (como la fase 4): ahí se documenta qué cambió y por qué.
 
-Desde la fase 4 hay dos referencias más, `referencia_fase4` y
-`referencia_fase4_blast_cache`, que son contra las que se compara de ahora en
-adelante. Las dos originales quedan como registro de cómo era la salida del
-script antes de la modularización.
+Contra qué se compara: **`referencia_actual` y `referencia_actual_blast_cache`**
+son siempre la salida vigente, y son las que se usan. Cuando un cambio modifica
+la salida a propósito, se documenta qué cambió y recién ahí se reemplazan por la
+corrida nueva. Las anteriores (`referencia_original`, `referencia_blast_cache`,
+`referencia_fase4*`) quedan como registro histórico.
+
+Cambios de salida hechos a propósito, en orden:
+
+- **fase 4**: `vs_confiables` → `coincide_con` (encabezado del 04), FASTA en
+  UTF-8 con fin de línea LF, `ERROR_BLAST` separado de `sin_hit`.
+- **Default personalizable** (13/09/2026): `00_resumen.txt` y la consola
+  terminan con el bloque "Criterios usados en esta corrida". Verificado sobre
+  los 192 `.ab1`: 01 a 05 idénticos byte a byte, solo se agregan 5 líneas al
+  resumen (7 con BLAST). Ninguna muestra cambió de grupo ni de interpretación.
 
 ---
 
@@ -176,11 +186,35 @@ tiene lógica de análisis. Sus tests (`tests/test_ui.py`) corren en modo
 "offscreen" y **se saltean en el CI**, que no instala PySide6; mirar la ventana
 de verdad sigue siendo una prueba manual.
 
-**Presets** (`config.py`): los valores salen de `README_clasificar_sanger.md`.
-**Están pendientes de que Victoria los confirme**; hasta entonces, el que viene
-elegido es "Default", que son los valores por defecto del pipeline. Si el
-usuario edita un umbral, el combo muestra `(modificado)` en vez de cambiar de
-preset: así se ve cuál eligió y que además tocó algo.
+**Perfiles / presets** (`config.py`): confirmados por Victoria el 13/09/2026,
+con un encuadre que no se negocia: **son sugerencias de configuración, no
+criterios de identificación taxonómica**. El 98,7 % del 16S es un valor sugerido
+y de uso frecuente, no un umbral que defina especie. Ese aviso general **está
+siempre a la vista** en la ventana; hay un test que lo verifica.
+
+La explicación de cada perfil, en cambio, **no queda fija**: ocupaba media
+pestaña (Victoria, 13/09/2026). Está en el globo del combo y en un botón `?`
+que la deja visible mientras se la lee. La distinción importa: el aviso
+científico es permanente, el texto de ayuda es a pedido.
+
+El perfil principal es **"Default"** (así, a secas): el programa se usa sobre
+todo para Sanger de virus e identificación de ingestas de mosquitos, y esos son
+los valores validados con el ensayo. Si el usuario edita un umbral, el combo
+muestra `(modificado)` en vez de cambiar de perfil.
+
+**El Default se puede personalizar** (decisión de Victoria, 13/09/2026): otro
+equipo de investigación puede dejar sus criterios ya puestos con el botón
+"Guardar estos valores como mi Default", y volver atrás con "Volver al Default
+del programa". Se guarda por usuario, en `~/.sanger/config.json`, bajo la clave
+`default`; el núcleo no sabe que existe (`valores_de_preset(nombre, propios)`
+recibe el diccionario y listo). Un Default propio es la **base de todos los
+perfiles**, no solo del Default: lo que un perfil no toca sigue siendo lo que el
+equipo eligió. Si el archivo está roto o editado a mano con cualquier cosa, se
+ignora y el programa abre con los valores de siempre.
+
+Como los umbrales dejaron de ser siempre los mismos, **`00_resumen.txt` termina
+diciendo con cuáles salió la corrida**. Los números salen de `Parametros`, no
+escritos a mano.
 
 ```
 src/sanger/        CORE. No sabe que existe una UI.

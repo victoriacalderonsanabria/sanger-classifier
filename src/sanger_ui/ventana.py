@@ -34,11 +34,19 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QTableView,
     QTabWidget,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
-from sanger.config import PRESETS, Parametros, valores_de_preset
+from sanger.config import (
+    AVISO_PRESETS,
+    PRESET_DEFAULT,
+    PRESETS,
+    Parametros,
+    normalizar_valores,
+    valores_de_preset,
+)
 from sanger.errores import Cancelado
 from sanger.io.informes import escribir_informes, escribir_resultados_filtrados
 from sanger.modelos import Grupo, Progreso, Resultado
@@ -113,6 +121,10 @@ class Ventana(QMainWindow):
         self.params: Parametros | None = None
         self.exportado = True  # no hay nada que perder todavía
         self.ultima_exportacion = ""
+        # Los umbrales que este equipo dejó guardados como su Default. Vacío =
+        # se usan los del programa. Se carga en _cargar_preferencias, pero tiene
+        # que existir antes: armar la pestaña ya consulta el perfil.
+        self.default_propio: dict = {}
         self.etapa_actual = ""
         self.detalle = ""
         self.desde = time.monotonic()
@@ -161,12 +173,67 @@ class Ventana(QMainWindow):
 
         grupo_blast = QGroupBox("Búsqueda en GenBank")
         form = QFormLayout(grupo_blast)
+        # El perfil, su aviso y los botones del Default son UNA cosa: con el
+        # interlineado de formulario quedaban tan separados que no se leían
+        # juntos. Las líneas de ayuda van pegadas a lo que explican.
+        form.setVerticalSpacing(4)
+        fila_preset = QWidget()
+        caja_preset = QHBoxLayout(fila_preset)
+        caja_preset.setContentsMargins(0, 0, 0, 0)
         self.v_preset = QComboBox()
         self.v_preset.addItems([p.nombre for p in PRESETS])
         # por índice y no por texto: al marcar "(modificado)" cambia el texto,
         # y buscar el preset por ese texto no encontraría nada
         self.v_preset.currentIndexChanged.connect(self._elegir_preset)
-        form.addRow("Preset:", self.v_preset)
+        # La explicación de cada perfil es larga y no se necesita todo el
+        # tiempo: pasando el mouse por el combo aparece, y este botón la deja
+        # fija para leerla con calma. Permanente ocupaba media pestaña.
+        self.b_info_preset = QToolButton()
+        self.b_info_preset.setText("?")
+        self.b_info_preset.setCheckable(True)
+        self.b_info_preset.setToolTip("Qué es este perfil")
+        self.b_info_preset.toggled.connect(self._mostrar_detalle_preset)
+        caja_preset.addWidget(self.v_preset, 1)
+        caja_preset.addWidget(self.b_info_preset)
+        form.addRow("Perfil:", fila_preset)
+
+        # Esto sí queda siempre a la vista, y es una línea: un umbral de
+        # identidad no define una especie y el combo no puede dar a entender
+        # que sí.
+        # sin etiqueta a la izquierda (addRow de un solo argumento): ocupan el
+        # ancho entero y no dejan una columna vacía al costado
+        self.etiqueta_preset = QLabel(AVISO_PRESETS)
+        self.etiqueta_preset.setWordWrap(True)
+        self.etiqueta_preset.setStyleSheet("color: gray;")
+        form.addRow(self.etiqueta_preset)
+
+        self.detalle_preset = QLabel("")
+        self.detalle_preset.setWordWrap(True)
+        self.detalle_preset.setStyleSheet("color: gray; margin-top: 4px;")
+        self.detalle_preset.setVisible(False)
+        form.addRow(self.detalle_preset)
+
+        # Cada equipo que use el programa puede tener criterios distintos a los
+        # del laboratorio. En vez de pedirle que los cargue a mano en cada
+        # corrida, los deja guardados una vez y quedan como su Default.
+        fila_default = QWidget()
+        caja_default = QHBoxLayout(fila_default)
+        caja_default.setContentsMargins(0, 0, 0, 0)
+        self.b_guardar_default = QPushButton("Guardar estos valores como mi Default")
+        self.b_guardar_default.setToolTip(
+            "Los valores que tenés cargados pasan a ser el Default de esta computadora.\n"
+            "No cambia nada para los demás: se guarda en tus preferencias."
+        )
+        self.b_guardar_default.clicked.connect(self.guardar_como_default)
+        self.b_restaurar_default = QPushButton("Volver al Default del programa")
+        self.b_restaurar_default.setToolTip(
+            "Descarta el Default guardado y vuelve a los valores validados con el ensayo."
+        )
+        self.b_restaurar_default.clicked.connect(self.restaurar_default_programa)
+        caja_default.addWidget(self.b_guardar_default)
+        caja_default.addWidget(self.b_restaurar_default)
+        caja_default.addStretch()
+        form.addRow(fila_default)
         self.v_db = QComboBox()
         self.v_db.setEditable(True)
         self.v_db.addItems(BASES)
@@ -179,7 +246,7 @@ class Ventana(QMainWindow):
         self.v_noblast = QCheckBox(
             "Solo control de calidad y clasificación (sin BLAST; es instantáneo)"
         )
-        form.addRow("", self.v_noblast)
+        form.addRow(self.v_noblast)
         layout.addWidget(grupo_blast)
 
         grupo_umbrales = QGroupBox(
@@ -376,15 +443,61 @@ class Ventana(QMainWindow):
         """El nombre del preset seleccionado, sin el sufijo de modificado."""
         return PRESETS[max(self.v_preset.currentIndex(), 0)].nombre
 
+    def _mostrar_detalle_preset(self, visible: bool) -> None:
+        """Muestra u oculta la explicación del perfil (el botón '?')."""
+        self.detalle_preset.setVisible(visible)
+
+    def valores_del_perfil(self, nombre: str) -> dict:
+        """Los valores de ese perfil, sobre el Default guardado si hay uno."""
+        return valores_de_preset(nombre, self.default_propio)
+
     def _elegir_preset(self, indice: int) -> None:
-        """Carga en los campos los valores del preset (todos, no solo los que cambia)."""
-        valores = valores_de_preset(PRESETS[indice].nombre)
+        """Carga en los campos los valores del perfil (todos, no solo los que cambia)."""
+        elegido = PRESETS[indice]
+        descripcion = elegido.descripcion
+        if self.default_propio:
+            descripcion += (
+                "\n\nEstá en uso un Default propio, guardado en esta computadora: "
+                "los valores de partida son los que guardó este equipo, no los que "
+                "trae el programa."
+            )
+        self.detalle_preset.setText(descripcion)
+        # también en el globo del combo: es donde uno lo busca primero
+        self.v_preset.setToolTip(descripcion)
+        self.b_info_preset.setToolTip(descripcion)
+        valores = self.valores_del_perfil(elegido.nombre)
         self.v_largo.setValue(valores["largo_min"])
         self.v_largo_laxo.setValue(valores["largo_min_laxo"])
         self.v_ident.setValue(valores["ident_min"])
         self.v_lote.setValue(valores["lote"])
         self.v_db.setCurrentText(valores["db"])
+        self.b_restaurar_default.setEnabled(bool(self.default_propio))
         self._refrescar_marca_preset()
+
+    def guardar_como_default(self) -> None:
+        """Deja lo que está cargado como Default de esta computadora."""
+        valores = normalizar_valores(self.valores_cargados())
+        if not valores:
+            return
+        self.default_propio = valores
+        self._volver_al_default()
+        self.estado.setText(
+            "Guardado: estos valores son, de ahora en más, el Default de esta computadora."
+        )
+
+    def restaurar_default_programa(self) -> None:
+        """Descarta el Default guardado y vuelve a los valores validados."""
+        self.default_propio = {}
+        self._volver_al_default()
+        self.estado.setText("Listo: volvieron los valores con los que viene el programa.")
+
+    def _volver_al_default(self) -> None:
+        indice = [p.nombre for p in PRESETS].index(PRESET_DEFAULT)
+        # setCurrentIndex no avisa si el índice ya era ese, así que los valores
+        # se recargan a mano: si no, cambiar el Default no se vería en pantalla.
+        self.v_preset.setCurrentIndex(indice)
+        self._elegir_preset(indice)
+        self.guardar_preferencias()
 
     def valores_cargados(self) -> dict:
         return {
@@ -405,7 +518,7 @@ class Ventana(QMainWindow):
         """
         indice = max(self.v_preset.currentIndex(), 0)
         nombre = PRESETS[indice].nombre
-        modificado = self.valores_cargados() != valores_de_preset(nombre)
+        modificado = self.valores_cargados() != self.valores_del_perfil(nombre)
         self.v_preset.setItemText(indice, f"{nombre} (modificado)" if modificado else nombre)
 
     def parametros(self) -> Parametros:
@@ -633,19 +746,25 @@ class Ventana(QMainWindow):
     # ---------------- preferencias ----------------
 
     def _cargar_preferencias(self, prefs: dict) -> None:
+        self.default_propio = normalizar_valores(prefs.get(preferencias.CLAVE_DEFAULT))
         self.v_email.setText(prefs.get("email", ""))
         self.v_entrada.setText(prefs.get("entrada", ""))
         self.ultima_exportacion = prefs.get("exportacion", "")
+        nombres = [p.nombre for p in PRESETS]
+        indice = nombres.index(prefs["preset"]) if prefs.get("preset") in nombres else 0
+        self.v_preset.setCurrentIndex(indice)
+        # explícito: con el perfil ya en ese índice la señal no sale, y el
+        # Default guardado quedaría sin cargarse
+        self._elegir_preset(indice)
+        # la base y el filtro que se usaron la última vez van por encima del
+        # perfil: son lo más específico que dijo esta persona
         if prefs.get("db"):
             self.v_db.setCurrentText(prefs["db"])
         if prefs.get("taxon"):
             self.v_taxon.setCurrentText(prefs["taxon"])
-        nombres = [p.nombre for p in PRESETS]
-        if prefs.get("preset") in nombres:
-            self.v_preset.setCurrentIndex(nombres.index(prefs["preset"]))
 
     def preferencias_actuales(self) -> dict:
-        return {
+        datos = {
             "email": self.v_email.text().strip(),
             "entrada": self.v_entrada.text().strip(),
             "exportacion": self.ultima_exportacion,
@@ -653,6 +772,9 @@ class Ventana(QMainWindow):
             "db": self.v_db.currentText().strip(),
             "taxon": self.v_taxon.currentText().strip(),
         }
+        if self.default_propio:
+            datos[preferencias.CLAVE_DEFAULT] = self.default_propio
+        return datos
 
     def guardar_preferencias(self) -> None:
         preferencias.guardar(self.preferencias_actuales())
