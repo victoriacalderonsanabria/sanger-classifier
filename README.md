@@ -1,4 +1,10 @@
-# sanger-classifier
+# Sanger Classifier
+
+A Python-based tool for quality control, F+R consensus generation, sequence
+classification and GenBank/BLAST-assisted identification of Sanger sequencing
+chromatograms.
+
+---
 
 Herramientas para identificar especies a partir de cromatogramas Sanger (`.ab1`)
 por BLAST. Sirve para cualquier marcador (COI, 16S, ITS, cytb…) y cualquier

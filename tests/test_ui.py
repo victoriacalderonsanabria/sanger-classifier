@@ -21,6 +21,7 @@ from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication, QFormLayout, QMessageBox  # noqa: E402
 
 import paridad  # noqa: E402
+from sanger import __version__  # noqa: E402
 from sanger.cli import main as cli_main  # noqa: E402
 from sanger.config import AVISO_PRESETS, PRESETS, Parametros  # noqa: E402
 from sanger.errores import Cancelado  # noqa: E402
@@ -124,6 +125,11 @@ def test_el_accession_lleva_al_registro_de_ncbi():
 # ----------------------------------------------------------------------------
 # Configuración → Parametros
 # ----------------------------------------------------------------------------
+
+
+def test_el_titulo_dice_que_version_es(ventana):
+    # para poder contestar "¿qué versión tenés?" sin hacer averiguar nada
+    assert ventana.windowTitle() == f"Clasificador de secuencias Sanger {__version__}"
 
 
 def test_los_campos_se_traducen_a_parametros(ventana, tmp_path):

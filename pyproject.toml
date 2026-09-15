@@ -4,7 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sanger-classifier"
-version = "1.0.0"
+# la versión sale de src/sanger/__init__.py, que es la que muestra la ventana
+dynamic = ["version"]
 description = "Control de calidad, consenso F/R y BLAST de cromatogramas Sanger (.ab1) para identificar especies."
 readme = "README.md"
 license = "MIT"
@@ -27,6 +28,9 @@ dev = [
 
 [project.gui-scripts]
 clasificador-sanger = "sanger_ui.app:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "sanger.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

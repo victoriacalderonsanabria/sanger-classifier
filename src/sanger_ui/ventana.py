@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from sanger import __version__
 from sanger.config import (
     AVISO_PRESETS,
     PRESET_DEFAULT,
@@ -113,7 +114,9 @@ class FiltroMuestras(QSortFilterProxyModel):
 class Ventana(QMainWindow):
     def __init__(self, prefs: dict | None = None):
         super().__init__()
-        self.setWindowTitle("Clasificador de secuencias Sanger")
+        # con la versión a la vista: cuando alguien avisa que algo le falla, lo
+        # primero que hay que saber es qué versión tiene
+        self.setWindowTitle(f"Clasificador de secuencias Sanger {__version__}")
         self.setWindowIcon(icono())
         self.resize(1000, 700)
         self.worker: Worker | None = None
